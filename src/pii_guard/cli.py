@@ -377,6 +377,116 @@ def audit_test(export_path: str | None) -> None:
         click.echo(f"\nTestprotokoll exportiert nach: {export_path}")
 
 
+def _find_compose_dir() -> str | None:
+    """Sucht docker-compose.yml im aktuellen oder übergeordneten Verzeichnis."""
+    current = Path.cwd()
+    for _ in range(5):
+        if (current / "docker-compose.yml").exists():
+            return str(current)
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
+@main.group()
+def docker() -> None:
+    """Docker-Daemon verwalten."""
+    pass
+
+
+@docker.command()
+@click.option("--port", default=7437, help="Port für den PII Guard Daemon")
+@click.option("--build", "do_build", is_flag=True, help="Docker Image neu bauen")
+def start(port: int, do_build: bool) -> None:
+    """Startet den PII Guard Docker-Daemon."""
+    import subprocess
+
+    if not shutil.which("docker"):
+        click.secho("Docker nicht gefunden. Bitte Docker Desktop installieren.", fg="red")
+        raise SystemExit(1)
+
+    # Finde docker-compose.yml im Projekt
+    compose_dir = _find_compose_dir()
+    if not compose_dir:
+        click.secho("Keine docker-compose.yml gefunden. Liegt sie im Projekt-Root?", fg="red")
+        raise SystemExit(1)
+
+    # Prüfe ob Container bereits läuft
+    result = subprocess.run(
+        ["docker", "ps", "--filter", "name=pii-guard", "--format", "{{.Status}}"],
+        capture_output=True, text=True,
+    )
+    if result.stdout.strip():
+        click.echo(f"PII Guard Container läuft bereits: {result.stdout.strip()}")
+        return
+
+    if do_build:
+        click.echo("Docker Image wird gebaut...")
+        subprocess.run(["docker", "compose", "build"], check=True, cwd=compose_dir)
+
+    click.echo(f"PII Guard Daemon wird gestartet (Port {port})...")
+    subprocess.run(["docker", "compose", "up", "-d"], check=True, cwd=compose_dir)
+
+    # Health-Check (max 30s warten)
+    import time
+    import urllib.request
+    import urllib.error
+
+    for i in range(30):
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
+            click.secho(f"PII Guard Daemon läuft auf Port {port}", fg="green")
+            click.echo("\nDocker-Modus in .pii-guard.yaml aktivieren:")
+            click.echo("  docker:")
+            click.echo("    enabled: true")
+            return
+        except (urllib.error.URLError, OSError):
+            time.sleep(1)
+
+    click.secho("Daemon gestartet, aber Health-Check antwortet noch nicht.", fg="yellow")
+    click.echo("Prüfe: docker logs pii-guard")
+
+
+@docker.command()
+def stop() -> None:
+    """Stoppt den PII Guard Docker-Daemon."""
+    import subprocess
+
+    compose_dir = _find_compose_dir()
+    subprocess.run(["docker", "compose", "down"], check=True, cwd=compose_dir)
+    click.echo("PII Guard Daemon gestoppt.")
+
+
+@docker.command(name="status")
+def docker_status() -> None:
+    """Zeigt den Status des Docker-Daemons."""
+    import subprocess
+    import urllib.request
+    import urllib.error
+
+    result = subprocess.run(
+        ["docker", "ps", "--filter", "name=pii-guard", "--format", "{{.Status}}"],
+        capture_output=True, text=True,
+    )
+
+    if not result.stdout.strip():
+        click.echo("PII Guard Container läuft nicht.")
+        return
+
+    click.echo(f"Container: {result.stdout.strip()}")
+
+    config = load_config()
+    port = config.get("docker", {}).get("port", 7437)
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as resp:
+            data = json.loads(resp.read())
+            click.secho(f"Health: {data.get('status', 'unknown')} (v{data.get('version', '?')})", fg="green")
+    except (urllib.error.URLError, OSError):
+        click.secho("Health-Check fehlgeschlagen", fg="red")
+
+
 _MINIMAL_CONFIG = """\
 version: 1
 engine:

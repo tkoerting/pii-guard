@@ -108,3 +108,33 @@ class TestValidation:
         }
         with pytest.raises(ConfigError, match="unknown.*ungültig"):
             _validate_config(config)
+
+    def test_invalid_docker_port(self):
+        config = {
+            "engine": {"languages": ["de"], "confidence_threshold": 0.7},
+            "rules": [],
+            "substitution": {"method": "type_preserving"},
+            "docker": {"port": 99999},
+        }
+        with pytest.raises(ConfigError, match="docker.port"):
+            _validate_config(config)
+
+    def test_invalid_on_error(self):
+        config = {
+            "engine": {"languages": ["de"], "confidence_threshold": 0.7},
+            "rules": [],
+            "substitution": {"method": "type_preserving"},
+            "on_error": "ignore",
+        }
+        with pytest.raises(ConfigError, match="on_error"):
+            _validate_config(config)
+
+    def test_valid_docker_config(self):
+        config = {
+            "engine": {"languages": ["de"], "confidence_threshold": 0.7},
+            "rules": [],
+            "substitution": {"method": "type_preserving"},
+            "docker": {"enabled": True, "port": 7437, "host": "127.0.0.1"},
+            "on_error": "block",
+        }
+        _validate_config(config)  # Kein Fehler

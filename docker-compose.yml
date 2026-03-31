@@ -1,0 +1,16 @@
+services:
+  pii-guard:
+    build: .
+    image: pii-guard:latest
+    container_name: pii-guard
+    ports:
+      - "127.0.0.1:7437:7437"
+    volumes:
+      - ./.pii-guard.yaml:/app/data/.pii-guard.yaml:ro
+      - ./.pii-guard:/app/data/.pii-guard
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges

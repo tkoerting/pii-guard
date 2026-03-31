@@ -67,3 +67,12 @@ mapping:
   path: .pii-guard/session-map.json
   # Mapping nach Session-Ende löschen
   auto_cleanup: true
+
+# Docker-Daemon (optional, statt lokaler Verarbeitung)
+# docker:
+#   enabled: false
+#   host: 127.0.0.1
+#   port: 7437
+
+# Verhalten bei Fehlern (allow = durchlassen, block = sperren)
+# on_error: allow

@@ -60,6 +60,12 @@ _DEFAULT_CONFIG = {
         "path": ".pii-guard/session-map.json",
         "auto_cleanup": True,
     },
+    "docker": {
+        "enabled": False,
+        "host": "127.0.0.1",
+        "port": 7437,
+    },
+    "on_error": "allow",
 }
 
 
@@ -102,6 +108,17 @@ def _validate_config(config: dict) -> None:
             f"substitution.method '{method}' ist ungültig. "
             f"Erlaubt: {', '.join(sorted(_VALID_METHODS))}"
         )
+
+    # Docker
+    docker = config.get("docker", {})
+    docker_port = docker.get("port", 7437)
+    if not isinstance(docker_port, int) or docker_port < 1 or docker_port > 65535:
+        raise ConfigError(f"docker.port '{docker_port}' ist ungültig (1-65535)")
+
+    # on_error
+    on_error = config.get("on_error", "allow")
+    if on_error not in {"allow", "block"}:
+        raise ConfigError(f"on_error '{on_error}' ist ungültig. Erlaubt: allow, block")
 
 
 def _deep_merge(base: dict, override: dict) -> None:

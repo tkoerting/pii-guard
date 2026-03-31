@@ -20,12 +20,51 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
+import urllib.error
+import urllib.request
 from uuid import uuid4
 
 from pii_guard.config import load_config
 
 log = logging.getLogger("pii_guard.hook")
+
+
+def _is_docker_mode(config: dict) -> bool:
+    """Prüft ob Docker-Modus aktiv ist (Env-Variable hat Vorrang vor Config)."""
+    env = os.environ.get("PII_GUARD_DOCKER")
+    if env is not None:
+        return env.lower() in ("1", "true", "yes")
+    return config.get("docker", {}).get("enabled", False)
+
+
+def _process_via_docker(prompt: str, config: dict) -> dict:
+    """Sendet den Prompt an den Docker-Daemon zur Verarbeitung."""
+    docker_config = config.get("docker", {})
+    host = docker_config.get("host", "127.0.0.1")
+    port = docker_config.get("port", 7437)
+    url = f"http://{host}:{port}/process"
+
+    payload = json.dumps({"prompt": prompt}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return json.loads(resp.read())
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        on_error = config.get("on_error", "allow")
+        log.warning("Docker-Daemon nicht erreichbar (%s), Fallback: %s", e, on_error)
+        if on_error == "block":
+            return {
+                "decision": "block",
+                "reason": "PII Guard: Docker-Daemon nicht erreichbar, Prompt geblockt (on_error: block)",
+            }
+        return {"decision": "allow"}
 
 
 def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) -> dict:
@@ -98,7 +137,12 @@ def main() -> None:
             return
 
         config = load_config()
-        result = process_prompt(prompt, config)
+
+        if _is_docker_mode(config):
+            result = _process_via_docker(prompt, config)
+        else:
+            result = process_prompt(prompt, config)
+
         json.dump(result, sys.stdout)
 
     except Exception as e:

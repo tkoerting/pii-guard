@@ -1,0 +1,12 @@
+.pii-guard/
+.git/
+tests/
+*.md
+.ruff_cache/
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
