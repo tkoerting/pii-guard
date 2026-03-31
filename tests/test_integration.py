@@ -156,4 +156,7 @@ class TestAuditTrail:
         lines = log_path.read_text().strip().splitlines()
         assert len(lines) >= 1
         entry = json.loads(lines[0])
-        assert entry["entity_type"] == "PERSON"
+        assert entry["pii_type"] == "PERSON"
+        assert "event_id" in entry
+        assert "session_id" in entry
+        assert entry["tool_version"] == "0.1.0"

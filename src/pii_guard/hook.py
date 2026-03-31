@@ -21,13 +21,14 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from uuid import uuid4
 
 from pii_guard.config import load_config
 
 log = logging.getLogger("pii_guard.hook")
 
 
-def process_prompt(prompt: str, config: dict) -> dict:
+def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) -> dict:
     """Verarbeitet einen Prompt und gibt die Hook-Entscheidung zurück."""
     # Lazy Imports: schwere Abhängigkeiten (Presidio, spaCy, Faker) erst hier laden.
     # Im Docker-Modus wird diese Funktion nicht aufgerufen – der Hook bleibt dünn.
@@ -36,16 +37,19 @@ def process_prompt(prompt: str, config: dict) -> dict:
     from pii_guard.mapper import SessionMapper
     from pii_guard.audit import log_findings
 
+    sid = session_id or str(uuid4())
     findings = detect_pii(prompt, config)
 
     if not findings:
+        from pii_guard.audit import log_event
+        log_event("PROMPT_ALLOWED", config, session_id=sid, details={"pii_count": 0})
         return {"decision": "allow"}
 
     # Prüfe ob etwas geblockt werden muss
     blocked = [f for f in findings if f.action == "block"]
     if blocked:
         reasons = [f"{f.entity_type}: '{f.masked_preview}'" for f in blocked]
-        log_findings(findings, config)
+        log_findings(findings, config, session_id=sid, prompt=prompt)
         return {
             "decision": "block",
             "reason": f"PII Guard: Sensible Daten erkannt – {', '.join(reasons)}",
@@ -54,7 +58,7 @@ def process_prompt(prompt: str, config: dict) -> dict:
     warnings = [f for f in findings if f.action == "warn"]
     masks = [f for f in findings if f.action == "auto_mask"]
 
-    log_findings(findings, config)
+    log_findings(findings, config, session_id=sid, prompt=prompt)
 
     # Warn-Message zusammenbauen (falls Warnungen vorhanden)
     warn_message = ""
