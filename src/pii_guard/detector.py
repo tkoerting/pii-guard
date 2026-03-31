@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngineProvider
+
+log = logging.getLogger("pii_guard.detector")
 
 
 @dataclass
@@ -35,13 +38,14 @@ def _get_engine(config: dict) -> AnalyzerEngine:
         return _engine
 
     engine_config = config.get("engine", {})
-    spacy_model = engine_config.get("spacy_model", "de_core_news_lg")
+    spacy_model_de = engine_config.get("spacy_model", "de_core_news_lg")
+    spacy_model_en = engine_config.get("spacy_model_en", "en_core_web_lg")
 
     nlp_config = {
         "nlp_engine_name": "spacy",
         "models": [
-            {"lang_code": "de", "model_name": spacy_model},
-            {"lang_code": "en", "model_name": "en_core_web_lg"},
+            {"lang_code": "de", "model_name": spacy_model_de},
+            {"lang_code": "en", "model_name": spacy_model_en},
         ],
     }
 
@@ -52,11 +56,14 @@ def _get_engine(config: dict) -> AnalyzerEngine:
     registry.load_predefined_recognizers(nlp_engine=nlp_engine)
 
     _engine = AnalyzerEngine(nlp_engine=nlp_engine, registry=registry)
+    log.info("Presidio AnalyzerEngine initialisiert (de: %s, en: %s)", spacy_model_de, spacy_model_en)
     return _engine
 
 
 def _mask_preview(text: str) -> str:
     """Erstellt einen anonymisierten Preview für das Audit-Log."""
+    if not text:
+        return "***"
     if len(text) <= 3:
         return text[0] + "***"
     return text[:3] + "***"
@@ -79,6 +86,9 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
     rules = config.get("rules", [])
     allow_list = config.get("allow_list", [])
 
+    allow_set = set(allow_list)
+    allow_lower = {a.lower() for a in allow_list}
+
     findings = []
 
     for lang in languages:
@@ -92,9 +102,7 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
             original_text = text[result.start:result.end]
 
             # Allow-List prüfen
-            if original_text in allow_list or original_text.lower() in [
-                a.lower() for a in allow_list
-            ]:
+            if original_text in allow_set or original_text.lower() in allow_lower:
                 continue
 
             action = _get_action_for_type(result.entity_type, rules)

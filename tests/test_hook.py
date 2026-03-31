@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -42,28 +42,28 @@ def config(tmp_path):
 
 
 class TestProcessPrompt:
-    @patch("pii_guard.hook.detect_pii", return_value=[])
+    @patch("pii_guard.detector.detect_pii", return_value=[])
     def test_no_findings_allows(self, mock_detect, config):
         result = process_prompt("Hallo Welt", config)
         assert result["decision"] == "allow"
         assert "prompt" not in result
 
-    @patch("pii_guard.hook.detect_pii")
+    @patch("pii_guard.detector.detect_pii")
     def test_block_decision(self, mock_detect, config):
         mock_detect.return_value = [_finding("PASSWORD", "block", "geheim123")]
         result = process_prompt("Passwort: geheim123", config)
         assert result["decision"] == "block"
         assert "reason" in result
 
-    @patch("pii_guard.hook.detect_pii")
-    @patch("pii_guard.hook.substitute_pii", return_value="Hans Schmidt arbeitet hier")
+    @patch("pii_guard.detector.detect_pii")
+    @patch("pii_guard.substitutor.substitute_pii", return_value="Hans Schmidt arbeitet hier")
     def test_auto_mask_substitutes(self, mock_sub, mock_detect, config):
         mock_detect.return_value = [_finding("PERSON", "auto_mask")]
         result = process_prompt("Max Mueller arbeitet hier", config)
         assert result["decision"] == "allow"
         assert result["prompt"] == "Hans Schmidt arbeitet hier"
 
-    @patch("pii_guard.hook.detect_pii")
+    @patch("pii_guard.detector.detect_pii")
     def test_warn_includes_message(self, mock_detect, config):
         mock_detect.return_value = [_finding("ORGANIZATION", "warn", "Firma GmbH")]
         result = process_prompt("Kunde: Firma GmbH", config)
@@ -71,8 +71,8 @@ class TestProcessPrompt:
         assert "message" in result
         assert "Hinweis" in result["message"]
 
-    @patch("pii_guard.hook.detect_pii")
-    @patch("pii_guard.hook.substitute_pii", return_value="Hans Schmidt bei ACME")
+    @patch("pii_guard.detector.detect_pii")
+    @patch("pii_guard.substitutor.substitute_pii", return_value="Hans Schmidt bei ACME")
     def test_mixed_warn_and_mask(self, mock_sub, mock_detect, config):
         mock_detect.return_value = [
             _finding("PERSON", "auto_mask", "Max Mueller", 0, 11),

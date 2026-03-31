@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import tempfile
 from pathlib import Path
 
+log = logging.getLogger("pii_guard.mapper")
 _IS_WINDOWS = sys.platform == "win32"
 
 
@@ -39,7 +41,7 @@ class SessionMapper:
             self._reverse = data.get("reverse", {})
             self._type_counters = data.get("counters", {})
         except (json.JSONDecodeError, KeyError):
-            pass
+            log.warning("Mapping-Datei beschädigt, starte mit leerem Mapping: %s", self.path)
 
     def _save(self) -> None:
         """Speichert das Mapping atomar auf Disk (write-then-rename)."""
@@ -63,12 +65,14 @@ class SessionMapper:
             with open(fd, "w", encoding="utf-8", newline="\n") as f:
                 f.write(data)
             os.replace(tmp_path, str(self.path))
-        except OSError:
+        except OSError as e:
             # Fallback für Windows: wenn Zieldatei gelockt ist, direkt schreiben
             Path(tmp_path).unlink(missing_ok=True)
             if _IS_WINDOWS:
+                log.warning("Atomares Schreiben fehlgeschlagen, Fallback: %s", e)
                 self.path.write_text(data, encoding="utf-8", newline="\n")
             else:
+                log.error("Atomares Schreiben fehlgeschlagen: %s", e)
                 raise
 
     def get_fake(self, original: str) -> str | None:

@@ -59,7 +59,7 @@ audit:
   commit_summary: true
   # Log-Rotation
   max_size_mb: 10
-  keep_days: 90
+  keep_days: 365
 
 # Reverse-Mapping
 mapping:

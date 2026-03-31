@@ -3,7 +3,7 @@
 Dieses Script wird von Claude Code als Hook aufgerufen.
 Es empfängt den Prompt auf stdin als JSON und gibt eine Entscheidung zurück.
 
-Registrierung in ~/.claude/settings.json:
+Registrierung in der Claude Code settings.json (Pfad plattformabhängig):
 {
   "hooks": {
     "user_prompt_submit": [
@@ -19,17 +19,23 @@ Registrierung in ~/.claude/settings.json:
 from __future__ import annotations
 
 import json
+import logging
 import sys
 
 from pii_guard.config import load_config
-from pii_guard.detector import detect_pii
-from pii_guard.substitutor import substitute_pii
-from pii_guard.mapper import SessionMapper
-from pii_guard.audit import log_findings
+
+log = logging.getLogger("pii_guard.hook")
 
 
 def process_prompt(prompt: str, config: dict) -> dict:
     """Verarbeitet einen Prompt und gibt die Hook-Entscheidung zurück."""
+    # Lazy Imports: schwere Abhängigkeiten (Presidio, spaCy, Faker) erst hier laden.
+    # Im Docker-Modus wird diese Funktion nicht aufgerufen – der Hook bleibt dünn.
+    from pii_guard.detector import detect_pii
+    from pii_guard.substitutor import substitute_pii
+    from pii_guard.mapper import SessionMapper
+    from pii_guard.audit import log_findings
+
     findings = detect_pii(prompt, config)
 
     if not findings:
@@ -73,6 +79,12 @@ def process_prompt(prompt: str, config: dict) -> dict:
 
 def main() -> None:
     """Entry point für den Claude Code Hook."""
+    # Logging auf stderr – stdout ist für Hook-JSON reserviert
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(name)s: %(message)s",
+        stream=sys.stderr,
+    )
     try:
         input_data = json.loads(sys.stdin.read())
         prompt = input_data.get("prompt", "")
@@ -88,7 +100,7 @@ def main() -> None:
     except Exception as e:
         # Bei Fehler: Prompt durchlassen, aber loggen
         json.dump({"decision": "allow"}, sys.stdout)
-        sys.stderr.write(f"PII Guard Error: {e}\n")
+        log.error("Fehler bei Prompt-Verarbeitung: %s", e)
 
 
 if __name__ == "__main__":

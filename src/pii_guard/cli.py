@@ -26,12 +26,7 @@ def init(with_gitleaks: bool) -> None:
     if config_path.exists():
         click.echo(f"Config existiert bereits: {config_path}")
     else:
-        # Beispiel-Config aus dem Package kopieren
-        example = Path(__file__).parent.parent.parent / ".pii-guard.yaml"
-        if example.exists():
-            shutil.copy(example, config_path)
-        else:
-            config_path.write_text(_MINIMAL_CONFIG)
+        config_path.write_text(_MINIMAL_CONFIG)
         click.echo(f"Config angelegt: {config_path}")
 
     # .pii-guard Verzeichnis erstellen

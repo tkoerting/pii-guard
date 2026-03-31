@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import csv
 import io
+import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
 from pii_guard.detector import Finding
+
+log = logging.getLogger("pii_guard.audit")
 
 
 def log_findings(findings: list[Finding], config: dict) -> None:

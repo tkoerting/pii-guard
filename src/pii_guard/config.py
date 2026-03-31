@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import copy
+import logging
 import sys
 from pathlib import Path
 
 import yaml
+
+log = logging.getLogger("pii_guard.config")
 
 
 def _user_config_dir() -> Path:
@@ -101,6 +104,15 @@ def _validate_config(config: dict) -> None:
         )
 
 
+def _deep_merge(base: dict, override: dict) -> None:
+    """Merged override rekursiv in base. Verändert base in-place."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
 def find_config_path() -> Path | None:
     """Findet die Config-Datei im Suchpfad."""
     for path in _CONFIG_SEARCH_PATHS:
@@ -126,13 +138,9 @@ def load_config(path: Path | None = None) -> dict:
     with config_path.open(encoding="utf-8") as f:
         user_config = yaml.safe_load(f) or {}
 
-    # Merge: User-Config überschreibt Defaults
+    # Merge: User-Config überschreibt Defaults (rekursiv für verschachtelte Dicts)
     merged = copy.deepcopy(_DEFAULT_CONFIG)
-    for key, value in user_config.items():
-        if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):
-            merged[key] = {**merged[key], **value}
-        else:
-            merged[key] = value
+    _deep_merge(merged, user_config)
 
     _validate_config(merged)
     return merged
