@@ -120,4 +120,17 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
             seen.add(key)
             unique.append(f)
 
-    return unique
+    # Überlappende Spans auflösen: bei Overlap den längsten Fund behalten
+    unique.sort(key=lambda f: (f.start, -(f.end - f.start)))
+    resolved = []
+    max_end = -1
+    for f in unique:
+        if f.start >= max_end:
+            resolved.append(f)
+            max_end = f.end
+        elif f.end > max_end:
+            # Teilweise überlappend – längerer Fund gewinnt (bereits vorne sortiert)
+            pass
+        # Komplett enthalten – überspringen
+
+    return resolved

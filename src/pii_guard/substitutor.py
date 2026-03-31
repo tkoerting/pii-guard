@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from faker import Faker
 
 from pii_guard.detector import Finding
@@ -9,7 +11,9 @@ from pii_guard.mapper import SessionMapper
 
 
 fake = Faker("de_DE")
-Faker.seed(0)  # Deterministic per default, wird pro Session neu geseedet
+# Deterministisch pro Session: PID + Prozessstart als Seed.
+# So bekommt jede Session andere Fakes, aber innerhalb einer Session bleibt es stabil.
+Faker.seed(os.getpid())
 
 
 # Mapping: Presidio Entity Type → Faker-Generator

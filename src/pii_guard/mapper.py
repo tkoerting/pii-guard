@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 
@@ -37,21 +38,28 @@ class SessionMapper:
             pass
 
     def _save(self) -> None:
-        """Speichert das Mapping auf Disk."""
+        """Speichert das Mapping atomar auf Disk (write-then-rename)."""
         if not self.enabled:
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(
-            json.dumps(
-                {
-                    "forward": self._forward,
-                    "reverse": self._reverse,
-                    "counters": self._type_counters,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
+        data = json.dumps(
+            {
+                "forward": self._forward,
+                "reverse": self._reverse,
+                "counters": self._type_counters,
+            },
+            ensure_ascii=False,
+            indent=2,
         )
+        # Atomares Schreiben: temp-Datei im selben Verzeichnis, dann rename
+        fd, tmp_path = tempfile.mkstemp(dir=self.path.parent, suffix=".tmp")
+        try:
+            with open(fd, "w", encoding="utf-8") as f:
+                f.write(data)
+            Path(tmp_path).replace(self.path)
+        except BaseException:
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
 
     def get_fake(self, original: str) -> str | None:
         """Gibt den Fake-Wert für ein Original zurück, falls vorhanden."""

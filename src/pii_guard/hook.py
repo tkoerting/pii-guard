@@ -45,21 +45,28 @@ def process_prompt(prompt: str, config: dict) -> dict:
             "reason": f"PII Guard: Sensible Daten erkannt – {', '.join(reasons)}",
         }
 
-    # Prüfe ob Warnungen vorliegen (User entscheidet)
     warnings = [f for f in findings if f.action == "warn"]
     masks = [f for f in findings if f.action == "auto_mask"]
+
+    log_findings(findings, config)
+
+    # Warn-Message zusammenbauen (falls Warnungen vorhanden)
+    warn_message = ""
+    if warnings:
+        warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
+        warn_message = f"PII Guard Hinweis: {', '.join(warn_parts)} erkannt (nicht maskiert)"
 
     # Auto-Mask anwenden
     if masks:
         mapper = SessionMapper(config)
         substituted_prompt = substitute_pii(prompt, masks, mapper, config)
-        log_findings(findings, config)
-        return {"decision": "allow", "prompt": substituted_prompt}
+        result = {"decision": "allow", "prompt": substituted_prompt}
+        if warn_message:
+            result["message"] = warn_message
+        return result
 
     if warnings:
-        # Warnungen loggen, aber durchlassen
-        log_findings(findings, config)
-        return {"decision": "allow"}
+        return {"decision": "allow", "message": warn_message}
 
     return {"decision": "allow"}
 

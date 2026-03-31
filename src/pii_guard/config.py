@@ -46,6 +46,47 @@ _DEFAULT_CONFIG = {
 }
 
 
+_VALID_ACTIONS = {"block", "auto_mask", "warn"}
+_VALID_METHODS = {"type_preserving", "placeholder"}
+
+
+class ConfigError(ValueError):
+    """Fehler in der PII Guard Konfiguration."""
+
+
+def _validate_config(config: dict) -> None:
+    """Validiert die Konfiguration und wirft ConfigError bei Fehlern."""
+    # Engine
+    engine = config.get("engine", {})
+    languages = engine.get("languages", [])
+    if not isinstance(languages, list) or not all(isinstance(l, str) for l in languages):
+        raise ConfigError("engine.languages muss eine Liste von Strings sein")
+
+    threshold = engine.get("confidence_threshold", 0.7)
+    if not isinstance(threshold, (int, float)) or not 0.0 <= threshold <= 1.0:
+        raise ConfigError("engine.confidence_threshold muss zwischen 0.0 und 1.0 liegen")
+
+    # Rules
+    for i, rule in enumerate(config.get("rules", [])):
+        action = rule.get("action")
+        if action not in _VALID_ACTIONS:
+            raise ConfigError(
+                f"rules[{i}].action '{action}' ist ungültig. "
+                f"Erlaubt: {', '.join(sorted(_VALID_ACTIONS))}"
+            )
+        types = rule.get("types", [])
+        if not isinstance(types, list) or not types:
+            raise ConfigError(f"rules[{i}].types muss eine nicht-leere Liste sein")
+
+    # Substitution
+    method = config.get("substitution", {}).get("method", "type_preserving")
+    if method not in _VALID_METHODS:
+        raise ConfigError(
+            f"substitution.method '{method}' ist ungültig. "
+            f"Erlaubt: {', '.join(sorted(_VALID_METHODS))}"
+        )
+
+
 def find_config_path() -> Path | None:
     """Findet die Config-Datei im Suchpfad."""
     for path in _CONFIG_SEARCH_PATHS:
@@ -79,4 +120,5 @@ def load_config(path: Path | None = None) -> dict:
         else:
             merged[key] = value
 
+    _validate_config(merged)
     return merged
