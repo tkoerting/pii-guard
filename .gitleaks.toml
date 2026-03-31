@@ -1,0 +1,30 @@
+# Gitleaks Konfiguration für PII Guard
+# Ergänzt Gitleaks-Default-Regeln um projektspezifische Patterns
+title = "PII Guard – Gitleaks Config"
+
+# Zusätzliche Regeln (on top of Gitleaks defaults)
+[[rules]]
+id = "german-iban"
+description = "Deutsche IBAN"
+regex = '''DE\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{2}'''
+tags = ["pii", "financial"]
+
+[[rules]]
+id = "azure-connection-string"
+description = "Azure SQL Connection String"
+regex = '''Server=tcp:[\w.-]+\.database\.windows\.net'''
+tags = ["secret", "azure"]
+
+[[rules]]
+id = "connection-string-password"
+description = "Passwort in Connection String"
+regex = '''[Pp]assword=\S+'''
+tags = ["secret"]
+
+# Dateien die nie gescannt werden
+[allowlist]
+paths = [
+    '''.pii-guard/session-map\.json''',
+    '''\.pii-guard/audit\.log''',
+    '''tests/fixtures/''',
+]

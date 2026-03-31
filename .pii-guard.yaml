@@ -1,0 +1,69 @@
+# PII Guard Konfiguration
+# Diese Datei gehört ins Projekt-Repo (zentral versioniert, lokal ausgeführt)
+version: 1
+
+# Erkennungs-Engine
+engine:
+  languages: ["de", "en"]
+  confidence_threshold: 0.7
+  # spaCy-Modell für Deutsch (wird bei 'pii-guard init' installiert)
+  spacy_model: de_core_news_lg
+
+# Substitutions-Methode
+substitution:
+  method: type_preserving  # type_preserving | placeholder
+  locale: de_DE            # Faker-Locale für Fake-Daten
+  deterministic: true      # Gleicher Input → gleicher Output pro Session
+
+# Regeln: Was passiert wenn PII erkannt wird
+rules:
+  # Harte Secrets – immer blocken, kein Verhandeln
+  - types: [PASSWORD, API_KEY, CREDIT_CARD, CRYPTO, AWS_ACCESS_KEY, AZURE_CONNECTION_STRING]
+    action: block
+
+  # IBANs – blocken (zu sensibel für Maskierung)
+  - types: [IBAN_CODE]
+    action: block
+
+  # Personenbezogene Daten – automatisch maskieren
+  - types: [PERSON, EMAIL_ADDRESS, PHONE_NUMBER, DATE_OF_BIRTH]
+    action: auto_mask
+
+  # Adressen und Orte – automatisch maskieren
+  - types: [LOCATION, ADDRESS]
+    action: auto_mask
+
+  # Firmennamen – warnen, User entscheidet
+  - types: [ORGANIZATION]
+    action: warn
+
+  # IP-Adressen – warnen
+  - types: [IP_ADDRESS]
+    action: warn
+
+# Ausnahmen (werden nie maskiert)
+allow_list:
+  - "b-imtec"
+  - "b-imtec GmbH"
+  - "Collana IT"
+  - "Microsoft"
+  - "Anthropic"
+  # Projektnamen etc. hier eintragen
+
+# Audit-Log
+audit:
+  enabled: true
+  path: .pii-guard/audit.log
+  format: jsonl          # jsonl | csv
+  # Bei git commit: PII-Summary als Kommentar anhängen
+  commit_summary: true
+  # Log-Rotation
+  max_size_mb: 10
+  keep_days: 90
+
+# Reverse-Mapping
+mapping:
+  enabled: true
+  path: .pii-guard/session-map.json
+  # Mapping nach Session-Ende löschen
+  auto_cleanup: true
