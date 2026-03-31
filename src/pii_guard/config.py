@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+import copy
+import sys
 from pathlib import Path
 
 import yaml
+
+
+def _user_config_dir() -> Path:
+    """Gibt das plattformspezifische Config-Verzeichnis zurück.
+
+    Windows: %APPDATA%/pii-guard
+    Mac/Linux: ~/.config/pii-guard
+    """
+    if sys.platform == "win32":
+        appdata = Path.home() / "AppData" / "Roaming" / "pii-guard"
+        return appdata
+    return Path.home() / ".config" / "pii-guard"
 
 
 # Suchpfade für Config (erste gefundene gewinnt)
 _CONFIG_SEARCH_PATHS = [
     Path(".pii-guard.yaml"),                          # Projekt-Root
     Path(".pii-guard.yml"),                           # Alternative Extension
-    Path.home() / ".config" / "pii-guard" / "config.yaml",  # User-Default
+    _user_config_dir() / "config.yaml",               # User-Default (plattformabhängig)
 ]
 
 _DEFAULT_CONFIG = {
@@ -107,13 +121,13 @@ def load_config(path: Path | None = None) -> dict:
     config_path = path or find_config_path()
 
     if config_path is None:
-        return _DEFAULT_CONFIG.copy()
+        return copy.deepcopy(_DEFAULT_CONFIG)
 
     with config_path.open(encoding="utf-8") as f:
         user_config = yaml.safe_load(f) or {}
 
     # Merge: User-Config überschreibt Defaults
-    merged = _DEFAULT_CONFIG.copy()
+    merged = copy.deepcopy(_DEFAULT_CONFIG)
     for key, value in user_config.items():
         if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):
             merged[key] = {**merged[key], **value}

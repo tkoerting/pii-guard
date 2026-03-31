@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 import tempfile
 from pathlib import Path
+
+_IS_WINDOWS = sys.platform == "win32"
 
 
 class SessionMapper:
@@ -51,15 +55,21 @@ class SessionMapper:
             ensure_ascii=False,
             indent=2,
         )
-        # Atomares Schreiben: temp-Datei im selben Verzeichnis, dann rename
+        # Atomares Schreiben: temp-Datei im selben Verzeichnis, dann rename.
+        # os.replace() funktioniert auf allen Plattformen (inkl. Windows seit Python 3.3).
+        # Auf Windows schlägt es nur fehl wenn eine andere Anwendung die Zieldatei offen hält.
         fd, tmp_path = tempfile.mkstemp(dir=self.path.parent, suffix=".tmp")
         try:
-            with open(fd, "w", encoding="utf-8") as f:
+            with open(fd, "w", encoding="utf-8", newline="\n") as f:
                 f.write(data)
-            Path(tmp_path).replace(self.path)
-        except BaseException:
+            os.replace(tmp_path, str(self.path))
+        except OSError:
+            # Fallback für Windows: wenn Zieldatei gelockt ist, direkt schreiben
             Path(tmp_path).unlink(missing_ok=True)
-            raise
+            if _IS_WINDOWS:
+                self.path.write_text(data, encoding="utf-8", newline="\n")
+            else:
+                raise
 
     def get_fake(self, original: str) -> str | None:
         """Gibt den Fake-Wert für ein Original zurück, falls vorhanden."""

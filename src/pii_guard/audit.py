@@ -22,7 +22,7 @@ def log_findings(findings: list[Finding], config: dict) -> None:
 
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    with log_path.open("a", encoding="utf-8") as f:
+    with log_path.open("a", encoding="utf-8", newline="") as f:
         for finding in findings:
             entry = {
                 "timestamp": timestamp,
