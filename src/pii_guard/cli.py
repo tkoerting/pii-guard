@@ -56,6 +56,9 @@ def init(with_gitleaks: bool) -> None:
     }
     click.echo(f"  {json.dumps(hook_config, indent=2)}")
 
+    # Claude Code Skills installieren
+    _install_skills()
+
     if with_gitleaks:
         click.echo("")
         if shutil.which("gitleaks"):
@@ -599,3 +602,108 @@ repos:
     hooks:
       - id: gitleaks
 """
+
+# Claude Code Skills (werden nach ~/.claude/commands/ installiert)
+_SKILLS = {
+    "allow.md": """\
+# PII Guard: Begriff freigeben
+
+Der User moechte einen Begriff freigeben, der von PII Guard faelschlich blockiert wurde.
+
+## Argumente
+
+$ARGUMENTS enthaelt den freizugebenden Begriff und die Begruendung.
+
+Format: `"Begriff" Begruendung als Freitext`
+Beispiel: `"Max Mueller" Fiktiver Testname in der Dokumentation`
+
+## Ablauf
+
+1. Parse $ARGUMENTS: Alles in Anfuehrungszeichen ist der Begriff, der Rest ist die Begruendung.
+2. Falls kein Begriff oder keine Begruendung angegeben: Frage den User danach.
+3. Fuehre aus:
+   ```bash
+   pii-guard allow "<Begriff>" --reason "<Begruendung>"
+   ```
+4. Bestaetige dem User die Freigabe.
+5. Falls der User den Prompt erneut senden moechte, weise darauf hin dass er ihn jetzt nochmal eingeben kann.
+
+## Wichtig
+
+- Eine Begruendung ist PFLICHT. Ohne Begruendung keine Freigabe.
+- Overrides gelten nur im aktuellen Projekt, nicht global.
+- Jede Freigabe wird im Audit-Log protokolliert.
+""",
+    "revoke.md": """\
+# PII Guard: Freigabe widerrufen
+
+Der User moechte eine zuvor erteilte Freigabe (Override) widerrufen.
+
+## Argumente
+
+$ARGUMENTS enthaelt den Begriff dessen Freigabe widerrufen werden soll.
+
+Beispiel: `Max Mueller`
+
+## Ablauf
+
+1. Falls kein Begriff angegeben: Zeige zuerst alle aktiven Freigaben mit `pii-guard overrides`, dann frage welche widerrufen werden soll.
+2. Fuehre aus:
+   ```bash
+   pii-guard revoke "<Begriff>"
+   ```
+3. Bestaetige dem User den Widerruf.
+
+## Wichtig
+
+- Der Widerruf wird im Audit-Log protokolliert.
+- Nach dem Widerruf wird der Begriff wieder von PII Guard erkannt und blockiert.
+""",
+    "pii-status.md": """\
+# PII Guard: Status und Overrides anzeigen
+
+Der User moechte den aktuellen PII Guard Status sehen.
+
+## Ablauf
+
+1. Zeige den PII Guard Status:
+   ```bash
+   pii-guard status
+   ```
+2. Zeige alle aktiven Freigaben:
+   ```bash
+   pii-guard overrides
+   ```
+3. Fasse die Ergebnisse uebersichtlich zusammen.
+""",
+}
+
+
+def _install_skills() -> None:
+    """Installiert PII Guard Skills nach ~/.claude/commands/."""
+    import sys as _sys
+
+    if _sys.platform == "win32":
+        claude_dir = Path.home() / ".claude" / "commands"
+    else:
+        claude_dir = Path.home() / ".claude" / "commands"
+
+    claude_dir.mkdir(parents=True, exist_ok=True)
+
+    installed = 0
+    for filename, content in _SKILLS.items():
+        target = claude_dir / filename
+        if target.exists():
+            existing = target.read_text(encoding="utf-8")
+            if "PII Guard" in existing:
+                continue  # Bereits installiert, nicht überschreiben
+        target.write_text(content, encoding="utf-8")
+        installed += 1
+
+    if installed:
+        click.echo(f"\nClaude Code Skills installiert ({installed} Dateien):")
+        click.echo(f"  {claude_dir}/")
+        for name in _SKILLS:
+            click.echo(f"    /{name.replace('.md', '')}")
+    else:
+        click.echo("\nClaude Code Skills: bereits installiert.")
