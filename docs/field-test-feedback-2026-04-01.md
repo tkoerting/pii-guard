@@ -180,6 +180,57 @@ eine Integration, die eingehende Prompts und ausgehende Antworten transformiert
 
 ---
 
+## Claude Code Skills in VS Code Extension ohne Ausgabe
+
+`pii-guard init` installiert drei Slash-Commands in `~/.claude/commands/`:
+`allow.md`, `revoke.md`, `pii-status.md`.
+
+In der VS Code Extension werden diese als Eingabe akzeptiert (`/allow`, `/revoke`,
+`/pii-status`), produzieren aber **keine Ausgabe im Chat**. Die Extension injiziert
+den Skill-Inhalt als Prompt an Claude, Claude müsste dann einen Bash-Befehl ausführen —
+eine möglicherweise nötige Bestätigungsdialog erscheint in VS Code nicht.
+
+**Zusätzliches Problem:** Die Skill-Dateien rufen `pii-guard` ohne Pfad auf. Auf Windows
+liegt `pii-guard.exe` unter `%APPDATA%\Python\Python312\Scripts\`, das nicht im
+Standard-PATH ist. Folge: Bash-Aufruf schlägt silent fehl, keine Rückmeldung.
+
+**Workaround:** Terminal-Befehle sind zuverlässiger:
+
+```powershell
+pii-guard allow "Begriff" --reason "Begründung"
+pii-guard revoke "Begriff"
+pii-guard status
+pii-guard overrides
+```
+
+**Empfehlung an Entwickler:**
+1. Skill-Dateien sollten `python -m pii_guard.cli` statt `pii-guard` verwenden
+   (plattformunabhängig, kein PATH-Problem)
+2. Dokumentieren, dass Skills in der VS Code Extension anders als in der CLI funktionieren
+
+---
+
+## Audit-Log: projektlokal, aber Hook läuft global
+
+Das Audit-Log wird relativ zum aktuellen Verzeichnis geschrieben
+(`audit.path: .pii-guard/audit.log` in `.pii-guard.yaml`). Der Hook läuft global
+(für alle Projekte), aber nur Projekte mit einer `.pii-guard.yaml` erzeugen ein Log.
+
+**Beobachtung:** `pii-guard status` zeigt 0 Einträge, wenn der Befehl aus einem
+Verzeichnis ohne aktive Config aufgerufen wird (z.B. dem geklonten Source-Repo).
+Das befüllte Log liegt im Projektverzeichnis, das die Config enthält.
+
+**Konsequenz:** Prompts aus Projekten ohne `.pii-guard.yaml` werden zwar gefiltert
+(über die User-Level-Config), aber **nicht auditiert**. Das ist eine Lücke für
+ISO-27001-Compliance-Anforderungen.
+
+**Empfehlung:** Audit-Log-Pfad in der User-Level-Config
+(`%APPDATA%/pii-guard/config.yaml`) auf einen absoluten, globalen Pfad setzen,
+z.B. `%APPDATA%/pii-guard/audit.log`. Alternativ: `pii-guard init` explizit darauf
+hinweisen, dass Auditing nur mit projektspezifischer Config funktioniert.
+
+---
+
 ## Zusammenfassung offener Punkte
 
 | # | Titel | Priorität | Issue |
@@ -190,4 +241,6 @@ eine Integration, die eingehende Prompts und ausgehende Antworten transformiert
 | 4 | auto_mask-Bezeichnung irreführend | Mittel | [#3](https://github.com/b-imtec-gmbh/pii-guard/issues/3) |
 | 5 | Latenz ~364 ms (Windows) | Mittel | [#2](https://github.com/b-imtec-gmbh/pii-guard/issues/2) |
 | 6 | Container-Down unsichtbar | Mittel | – |
-| 7 | Bidirektionales Mapping | Feature | [#4](https://github.com/b-imtec-gmbh/pii-guard/issues/4) |
+| 7 | Skills in VS Code ohne Ausgabe + PATH-Problem | Mittel | – |
+| 8 | Audit-Log nur mit projektspezifischer Config | Mittel | – |
+| 9 | Bidirektionales Mapping | Feature | [#4](https://github.com/b-imtec-gmbh/pii-guard/issues/4) |
