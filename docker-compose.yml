@@ -1,7 +1,6 @@
 services:
   pii-guard:
-    build: .
-    image: pii-guard:latest
+    image: piiguard.azurecr.io/pii-guard:latest
     container_name: pii-guard
     ports:
       - "127.0.0.1:7437:7437"

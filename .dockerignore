@@ -1,7 +1,9 @@
 .pii-guard/
 .git/
 tests/
-*.md
+CLAUDE.md
+CHANGELOG.md
+docs/
 .ruff_cache/
 __pycache__/
 .pytest_cache/

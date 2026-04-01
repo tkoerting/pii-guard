@@ -97,6 +97,18 @@ def test(text: str) -> None:
 
 
 @main.command()
+def on() -> None:
+    """Aktiviert PII Guard (Hook in Claude Code settings.json)."""
+    _set_hook_enabled(True)
+
+
+@main.command()
+def off() -> None:
+    """Deaktiviert PII Guard (Hook aus Claude Code settings.json entfernen)."""
+    _set_hook_enabled(False)
+
+
+@main.command()
 @click.option("--check", is_flag=True, help="Exit-Code 1 wenn keine Config gefunden")
 def status(check: bool) -> None:
     """Zeigt den aktuellen PII Guard Status."""
@@ -707,3 +719,67 @@ def _install_skills() -> None:
             click.echo(f"    /{name.replace('.md', '')}")
     else:
         click.echo("\nClaude Code Skills: bereits installiert.")
+
+
+_HOOK_ENTRY = {
+    "type": "command",
+    "command": "python3 -m pii_guard.hook",
+    "timeout": 15000,
+}
+
+
+def _claude_settings_path() -> Path:
+    """Pfad zur Claude Code settings.json."""
+    return Path.home() / ".claude" / "settings.json"
+
+
+def _set_hook_enabled(enabled: bool) -> None:
+    """Aktiviert oder deaktiviert den PII Guard Hook in Claude Code."""
+    settings_path = _claude_settings_path()
+
+    if not settings_path.exists():
+        if enabled:
+            settings = {"hooks": {"UserPromptSubmit": [{"matcher": "", "hooks": [_HOOK_ENTRY]}]}}
+            settings_path.parent.mkdir(parents=True, exist_ok=True)
+            settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+            click.secho("PII Guard aktiviert.", fg="green")
+        else:
+            click.echo("Keine Claude Code settings.json gefunden.")
+        return
+
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    hooks = settings.setdefault("hooks", {})
+    submit_hooks = hooks.get("UserPromptSubmit", [])
+
+    if enabled:
+        # Prüfe ob Hook schon drin ist
+        for group in submit_hooks:
+            for h in group.get("hooks", []):
+                if "pii_guard" in h.get("command", ""):
+                    click.echo("PII Guard ist bereits aktiv.")
+                    return
+
+        submit_hooks.append({"matcher": "", "hooks": [_HOOK_ENTRY]})
+        hooks["UserPromptSubmit"] = submit_hooks
+        click.secho("PII Guard aktiviert.", fg="green")
+    else:
+        # Hook entfernen
+        filtered = []
+        removed = False
+        for group in submit_hooks:
+            group_hooks = [h for h in group.get("hooks", []) if "pii_guard" not in h.get("command", "")]
+            if len(group_hooks) < len(group.get("hooks", [])):
+                removed = True
+            if group_hooks:
+                group["hooks"] = group_hooks
+                filtered.append(group)
+            elif not group.get("hooks"):
+                filtered.append(group)
+
+        hooks["UserPromptSubmit"] = filtered
+        if removed:
+            click.secho("PII Guard deaktiviert.", fg="yellow")
+        else:
+            click.echo("PII Guard war nicht aktiv.")
+
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
