@@ -16,6 +16,7 @@ Architektur:
 
 from __future__ import annotations
 
+import gzip as _gzip
 import json
 import logging
 import threading
@@ -44,6 +45,7 @@ _HOP_BY_HOP = {
     "connection", "keep-alive", "proxy-authenticate",
     "proxy-authorization", "te", "trailers",
     "transfer-encoding", "upgrade", "host",
+    "content-encoding",  # FIX: Body wird als unkomprimiertes JSON neu serialisiert
 }
 
 
@@ -81,6 +83,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     headers[key] = value
             headers["Content-Length"] = str(len(upstream_body))
             headers["Host"] = urlparse(_ANTHROPIC_API).netloc
+            # FIX: kein gzip anfordern – verhindert Dekomprimierungsfehler
+            headers["Accept-Encoding"] = "identity"
 
             req = urllib.request.Request(
                 upstream_url,
@@ -91,6 +95,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
             with urllib.request.urlopen(req, timeout=300) as resp:
                 response_body = resp.read()
+
+                # FIX: gzip-komprimierte Antwort dekomprimieren falls nötig
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    response_body = _gzip.decompress(response_body)
+
                 response_data = json.loads(response_body)
 
                 # PII in der Antwort zurückmappen
