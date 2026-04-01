@@ -6,15 +6,12 @@ Für die reine Logik (Overlap, Allow-List, Action-Mapping) werden Mocks verwende
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from pii_guard.detector import (
-    Finding,
-    detect_pii,
-    _mask_preview,
     _get_action_for_type,
+    _mask_preview,
+    detect_pii,
 )
 
 

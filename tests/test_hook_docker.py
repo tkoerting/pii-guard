@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from unittest.mock import patch
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 

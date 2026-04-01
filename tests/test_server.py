@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import json
 import threading
-import time
-import urllib.request
 import urllib.error
+import urllib.request
+from http.server import HTTPServer
+from unittest.mock import patch
 
 import pytest
 
-from pii_guard.server import PiiGuardHandler, run_server
-from http.server import HTTPServer
-from unittest.mock import patch, MagicMock
+from pii_guard.server import PiiGuardHandler
 
 
 @pytest.fixture()
@@ -75,7 +74,10 @@ class TestProcessEndpoint:
             assert data["decision"] == "allow"
         mock_process.assert_not_called()
 
-    @patch("pii_guard.server.process_prompt", return_value={"decision": "allow", "prompt": "Fake Name"})
+    @patch(
+        "pii_guard.server.process_prompt",
+        return_value={"decision": "allow", "prompt": "Fake Name"},
+    )
     def test_process_returns_result(self, mock_process, test_server):
         payload = json.dumps({"prompt": "Max Mueller"}).encode()
         req = urllib.request.Request(

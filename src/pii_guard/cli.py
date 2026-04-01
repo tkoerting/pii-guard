@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from pii_guard.config import load_config, find_config_path
+from pii_guard.config import find_config_path, load_config
 
 
 @click.group()
@@ -40,9 +40,11 @@ def init(with_gitleaks: bool) -> None:
     click.echo(f"Guard-Verzeichnis: {guard_dir}/")
 
     # Claude Code Hook-Hinweis
-    from pii_guard.config import _user_config_dir
     import sys as _sys
-    claude_settings = "~\\.claude\\settings.json" if _sys.platform == "win32" else "~/.claude/settings.json"
+    if _sys.platform == "win32":
+        claude_settings = "~\\.claude\\settings.json"
+    else:
+        claude_settings = "~/.claude/settings.json"
     click.echo("")
     click.echo("Claude Code Hook registrieren:")
     click.echo(f"  Füge in {claude_settings} hinzu:")
@@ -158,8 +160,8 @@ def audit_export(from_date: str | None, output: str | None) -> None:
 @click.option("--output", "-o", help="Ausgabedatei (Default: stdout)")
 def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: str | None) -> None:
     """Generiert einen strukturierten Compliance-Report."""
-    from pii_guard.audit import _read_log_entries, export_csv, _config_hash
     import pii_guard
+    from pii_guard.audit import _config_hash, _read_log_entries, export_csv
 
     config = load_config()
     audit_config = config.get("audit", {})
@@ -179,13 +181,13 @@ def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: s
     # Markdown Report
     lines = ["# PII Guard Audit-Report", ""]
     lines.append(f"- **Zeitraum**: {from_date or 'Beginn'} bis {to_date or 'heute'}")
-    from datetime import datetime as _dt
     import getpass as _getpass
+    from datetime import datetime as _dt
     lines.append(f"- **Erstellt am**: {_dt.now().isoformat()[:19]}")
     lines.append(f"- **Erstellt durch**: {_getpass.getuser()}")
     lines.append(f"- **PII Guard Version**: {pii_guard.__version__}")
     lines.append(f"- **Config-Hash**: {_config_hash(config)}")
-    lines.append(f"- **Geprüft durch**: ___")
+    lines.append("- **Geprüft durch**: ___")
     lines.append("")
 
     if not entries:
@@ -277,8 +279,8 @@ def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: s
 @click.option("--export", "export_path", help="CSV-Export-Pfad")
 def audit_test(export_path: str | None) -> None:
     """Führt Wirksamkeitstests durch und protokolliert das Ergebnis."""
-    from pii_guard.detector import detect_pii
     from pii_guard.audit import log_event
+    from pii_guard.detector import detect_pii
 
     config = load_config()
     min_rate = config.get("test", {}).get("min_detection_rate", 0.8)
@@ -363,13 +365,15 @@ def audit_test(export_path: str | None) -> None:
         if not passed:
             all_pass = False
         status = click.style("PASS", fg="green") if passed else click.style("FAIL", fg="red")
-        click.echo(f"  {status}  {pii_type:20s}  {stats['detected']}/{stats['total']}  ({rate:.0%}, Minimum: {min_rate:.0%})")
+        rate_str = f"{rate:.0%}, Minimum: {min_rate:.0%}"
+        count_str = f"{stats['detected']}/{stats['total']}"
+        click.echo(f"  {status}  {pii_type:20s}  {count_str}  ({rate_str})")
 
     if false_positives > 0:
         all_pass = False
         click.secho(f"\n  FAIL  {false_positives} False Positive(s) in negativen Tests", fg="red")
     else:
-        click.secho(f"\n  PASS  Keine False Positives", fg="green")
+        click.secho("\n  PASS  Keine False Positives", fg="green")
 
     # Gesamtergebnis
     click.echo("\n" + "=" * 50)
@@ -381,14 +385,19 @@ def audit_test(export_path: str | None) -> None:
     # Ins Audit-Log schreiben
     log_event("EFFECTIVENESS_TEST", config, details={
         "outcome": "SUCCESS" if all_pass else "FAILURE",
-        "action_taken": f"positive:{len(positive_cases)},negative:{len(negative_cases)},fp:{false_positives}",
+        "action_taken": (
+            f"positive:{len(positive_cases)},"
+            f"negative:{len(negative_cases)},"
+            f"fp:{false_positives}"
+        ),
     })
 
     # CSV-Export
     if export_path:
         import csv
         with Path(export_path).open("w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["test_type", "expected_type", "text", "detected", "score"])
+            fields = ["test_type", "expected_type", "text", "detected", "score"]
+            writer = csv.DictWriter(f, fieldnames=fields)
             writer.writeheader()
             writer.writerows(results)
         click.echo(f"\nTestprotokoll exportiert nach: {export_path}")
@@ -404,8 +413,8 @@ def allow(term: str, reason: str, who: str | None, entity_type: str | None) -> N
 
     Beispiel: pii-guard allow "Max Müller" --reason "Fiktiver Testname in Doku"
     """
-    from pii_guard.overrides import add_override
     from pii_guard.audit import log_event
+    from pii_guard.overrides import add_override
 
     config = load_config()
 
@@ -436,8 +445,8 @@ def revoke(term: str) -> None:
 
     Beispiel: pii-guard revoke "Max Müller"
     """
-    from pii_guard.overrides import remove_override
     from pii_guard.audit import log_event
+    from pii_guard.overrides import remove_override
 
     config = load_config()
     removed = remove_override(term, config)
@@ -530,8 +539,8 @@ def start(port: int, do_build: bool) -> None:
 
     # Health-Check (max 30s warten)
     import time
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     for i in range(30):
         try:
@@ -562,8 +571,8 @@ def stop() -> None:
 def docker_status() -> None:
     """Zeigt den Status des Docker-Daemons."""
     import subprocess
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     result = subprocess.run(
         ["docker", "ps", "--filter", "name=pii-guard", "--format", "{{.Status}}"],
@@ -581,7 +590,9 @@ def docker_status() -> None:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as resp:
             data = json.loads(resp.read())
-            click.secho(f"Health: {data.get('status', 'unknown')} (v{data.get('version', '?')})", fg="green")
+            status = data.get("status", "unknown")
+            version = data.get("version", "?")
+            click.secho(f"Health: {status} (v{version})", fg="green")
     except (urllib.error.URLError, OSError):
         click.secho("Health-Check fehlgeschlagen", fg="red")
 
@@ -638,7 +649,7 @@ Beispiel: `"Max Mueller" Fiktiver Testname in der Dokumentation`
    pii-guard allow "<Begriff>" --reason "<Begruendung>"
    ```
 4. Bestaetige dem User die Freigabe.
-5. Falls der User den Prompt erneut senden moechte, weise darauf hin dass er ihn jetzt nochmal eingeben kann.
+5. Weise darauf hin, dass der Prompt jetzt nochmal gesendet werden kann.
 
 ## Wichtig
 
@@ -659,7 +670,7 @@ Beispiel: `Max Mueller`
 
 ## Ablauf
 
-1. Falls kein Begriff angegeben: Zeige zuerst alle aktiven Freigaben mit `pii-guard overrides`, dann frage welche widerrufen werden soll.
+1. Falls kein Begriff angegeben: Zeige alle Freigaben mit `pii-guard overrides`, dann frage nach.
 2. Fuehre aus:
    ```bash
    pii-guard revoke "<Begriff>"
@@ -767,7 +778,10 @@ def _set_hook_enabled(enabled: bool) -> None:
         filtered = []
         removed = False
         for group in submit_hooks:
-            group_hooks = [h for h in group.get("hooks", []) if "pii_guard" not in h.get("command", "")]
+            group_hooks = [
+                h for h in group.get("hooks", [])
+                if "pii_guard" not in h.get("command", "")
+            ]
             if len(group_hooks) < len(group.get("hooks", [])):
                 removed = True
             if group_hooks:

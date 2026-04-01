@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pii_guard.config import load_config, find_config_path, ConfigError, _validate_config
+from pii_guard.config import ConfigError, _validate_config, find_config_path, load_config
 
 
 @pytest.fixture()

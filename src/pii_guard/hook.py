@@ -64,7 +64,10 @@ def _process_via_docker(prompt: str, config: dict) -> dict:
         if on_error == "block":
             return {
                 "decision": "block",
-                "reason": "PII Guard: Docker-Daemon nicht erreichbar, Prompt geblockt (on_error: block)",
+                "reason": (
+                    "PII Guard: Docker-Daemon nicht erreichbar, "
+                    "Prompt geblockt (on_error: block)"
+                ),
             }
         return {"decision": "allow"}
 
@@ -80,8 +83,8 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
     Warnungen (action: warn) werden als systemMessage durchgereicht,
     blockieren aber nicht.
     """
-    from pii_guard.detector import detect_pii
     from pii_guard.audit import log_findings
+    from pii_guard.detector import detect_pii
 
     sid = session_id or str(uuid4())
     findings = detect_pii(prompt, config)
@@ -109,7 +112,11 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
 
     if masks:
         details = [f"{f.entity_type}: '{f.masked_preview}'" for f in masks]
-        reason = f"PII Guard: Personenbezogene Daten erkannt – {', '.join(details)}. Bitte entferne die PII aus deinem Prompt."
+        reason = (
+            f"PII Guard: Personenbezogene Daten erkannt"
+            f" – {', '.join(details)}."
+            f" Bitte entferne die PII aus deinem Prompt."
+        )
         if warnings:
             warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
             reason += f" Zusaetzlich erkannt (Warnung): {', '.join(warn_parts)}"

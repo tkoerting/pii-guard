@@ -6,7 +6,7 @@ import pytest
 
 from pii_guard.detector import Finding
 from pii_guard.mapper import SessionMapper
-from pii_guard.substitutor import substitute_pii, _generate_fake
+from pii_guard.substitutor import _generate_fake, substitute_pii
 
 
 @pytest.fixture()

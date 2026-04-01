@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pii_guard.hook import process_prompt
 from pii_guard.detector import Finding
+from pii_guard.hook import process_prompt
 
 
 def _finding(entity_type="PERSON", action="auto_mask", text="Max Mueller", start=0, end=11):

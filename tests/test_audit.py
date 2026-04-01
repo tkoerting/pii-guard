@@ -7,8 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from pii_guard.audit import log_findings, log_event, export_csv, generate_commit_summary
-from pii_guard.audit import _rotate_if_needed, _read_log_entries
+from pii_guard.audit import (
+    _read_log_entries,
+    _rotate_if_needed,
+    export_csv,
+    generate_commit_summary,
+    log_event,
+    log_findings,
+)
 from pii_guard.detector import Finding
 
 

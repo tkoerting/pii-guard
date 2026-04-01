@@ -84,7 +84,7 @@ def _validate_config(config: dict) -> None:
     # Engine
     engine = config.get("engine", {})
     languages = engine.get("languages", [])
-    if not isinstance(languages, list) or not all(isinstance(l, str) for l in languages):
+    if not isinstance(languages, list) or not all(isinstance(lang, str) for lang in languages):
         raise ConfigError("engine.languages muss eine Liste von Strings sein")
 
     threshold = engine.get("confidence_threshold", 0.7)

@@ -7,19 +7,22 @@ Testet das Zusammenspiel aller Module mit gemocktem Presidio-Backend.
 from __future__ import annotations
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pii_guard.hook import process_prompt
-from pii_guard.mapper import SessionMapper
 
 
 @pytest.fixture()
 def config(tmp_path):
     return {
         "version": 1,
-        "engine": {"languages": ["de"], "confidence_threshold": 0.7, "spacy_model": "de_core_news_lg"},
+        "engine": {
+            "languages": ["de"],
+            "confidence_threshold": 0.7,
+            "spacy_model": "de_core_news_lg",
+        },
         "rules": [
             {"types": ["PASSWORD", "API_KEY", "CREDIT_CARD"], "action": "block"},
             {"types": ["IBAN_CODE"], "action": "block"},

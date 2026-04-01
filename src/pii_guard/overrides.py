@@ -84,7 +84,10 @@ def add_override(
         "entity_type": entity_type,
         "added_by": who or getpass.getuser(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "hostname": os.uname().nodename if not _IS_WINDOWS else os.environ.get("COMPUTERNAME", "unknown"),
+        "hostname": (
+            os.environ.get("COMPUTERNAME", "unknown")
+            if _IS_WINDOWS else os.uname().nodename
+        ),
     }
 
     overrides.append(entry)
