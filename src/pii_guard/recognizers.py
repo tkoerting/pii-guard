@@ -45,3 +45,34 @@ class GermanPhoneRecognizer(PatternRecognizer):
             patterns=self.PATTERNS,
             context=self.CONTEXT,
         )
+
+
+class StandaloneIpRecognizer(PatternRecognizer):
+    """Erkennt IPv4-Adressen auch ohne Kontextwörter.
+
+    Presidios eingebauter IpRecognizer vergibt nur Score 0.6 ohne
+    Kontextwörter wie 'IP' oder 'address'. Dieser Recognizer nutzt
+    einen höheren Base-Score, da eine valide IPv4-Adresse in einem
+    Prompt fast immer echte PII ist.
+    """
+
+    PATTERNS = [
+        Pattern(
+            "IPV4",
+            r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b",
+            0.7,
+        ),
+    ]
+
+    CONTEXT = [
+        "ip", "adresse", "address", "server", "host", "netzwerk",
+        "network", "subnet", "gateway", "dns", "ping",
+    ]
+
+    def __init__(self, supported_language: str = "de") -> None:
+        super().__init__(
+            supported_entity="IP_ADDRESS",
+            supported_language=supported_language,
+            patterns=self.PATTERNS,
+            context=self.CONTEXT,
+        )

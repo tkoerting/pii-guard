@@ -13,7 +13,7 @@ from presidio_analyzer.predefined_recognizers import (
     CreditCardRecognizer,
 )
 
-from pii_guard.recognizers import GermanPhoneRecognizer
+from pii_guard.recognizers import GermanPhoneRecognizer, StandaloneIpRecognizer
 
 log = logging.getLogger("pii_guard.detector")
 
@@ -22,6 +22,7 @@ log = logging.getLogger("pii_guard.detector")
 _EXTRA_RECOGNIZER_CLASSES = [
     CreditCardRecognizer,
     GermanPhoneRecognizer,
+    StandaloneIpRecognizer,
 ]
 
 # NER-basierte Entity-Typen (SpacyRecognizer). Diese unterliegen
