@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """PII Guard – Lokaler Datenschutz-Filter für KI-Coding-Tools."""
 
 import logging

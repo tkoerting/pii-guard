@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """Typerhaltende Substitution – Fake-Daten statt Platzhalter."""
 
 from __future__ import annotations

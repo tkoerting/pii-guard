@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """YAML-Config Loader für PII Guard."""
 
 from __future__ import annotations

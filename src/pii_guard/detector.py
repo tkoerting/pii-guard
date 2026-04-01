@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """PII-Erkennung mit Microsoft Presidio."""
 
 from __future__ import annotations

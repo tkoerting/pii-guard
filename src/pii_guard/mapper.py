@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """Reversibles Mapping – Original ↔ Fake, lokal gespeichert."""
 
 from __future__ import annotations

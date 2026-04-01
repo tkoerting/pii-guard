@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """Claude Code Hook – user_prompt_submit.
 
 Dieses Script wird von Claude Code als Hook aufgerufen.

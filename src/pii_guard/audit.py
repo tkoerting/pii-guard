@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """Audit-Logger – lückenloser Nachweis aller PII-Funde (ISO 27001 A.8.15)."""
 
 from __future__ import annotations

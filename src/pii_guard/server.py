@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Thomas Körting / b-imtec GmbH
+# Lizenz: MIT – siehe LICENSE
 """HTTP API Server für Docker-basiertes PII Guard Backend.
 
 Läuft als Daemon im Container, empfängt Prompts per HTTP und gibt

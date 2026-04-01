@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PII Guard – Datenschutz-Filter für KI-Coding-Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #000;
+    --fg: #f5f5f7;
+    --fg-dim: #86868b;
+    --fg-muted: #6e6e73;
+    --accent: #2997ff;
+    --accent2: #5856d6;
+    --accent-green: #30d158;
+    --accent-red: #ff453a;
+    --accent-orange: #ff9f0a;
+    --accent-purple: #bf5af2;
+    --accent-yellow: #ffd60a;
+    --card-bg: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.08);
+    --gradient-blue: linear-gradient(135deg, #2997ff, #5856d6);
+    --gradient-green: linear-gradient(135deg, #30d158, #34c759);
+    --gradient-warm: linear-gradient(135deg, #ff9f0a, #ff453a);
+}
+[data-theme="light"] {
+    --bg: #fff;
+    --fg: #1d1d1f;
+    --fg-dim: #6e6e73;
+    --fg-muted: #86868b;
+    --accent: #0071e3;
+    --accent2: #5856d6;
+    --accent-green: #248a3d;
+    --accent-red: #d72631;
+    --accent-orange: #e87a00;
+    --accent-purple: #9b59b6;
+    --accent-yellow: #c49b00;
+    --card-bg: #f5f5f7;
+    --card-border: #d2d2d7;
+    --gradient-blue: linear-gradient(135deg, #0071e3, #5856d6);
+    --gradient-green: linear-gradient(135deg, #248a3d, #34c759);
+    --gradient-warm: linear-gradient(135deg, #e87a00, #d72631);
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--fg); font-family:'Inter',system-ui,sans-serif; }
+.progress-bar { position:fixed; top:0; left:0; height:3px; background:var(--accent); transition:width 0.3s ease; z-index:200; width:5%; }
+.theme-toggle { position:fixed; top:1.8rem; left:2rem; background:none; border:1px solid var(--card-border); color:var(--fg-muted); font-size:1.2rem; width:2.2rem; height:2.2rem; border-radius:50%; cursor:pointer; z-index:200; display:flex; align-items:center; justify-content:center; transition:all 0.3s; }
+.theme-toggle:hover { border-color:var(--accent); color:var(--accent); }
+.watermark { position:fixed; top:1.8rem; right:2rem; font-size:0.7rem; color:var(--fg-muted); letter-spacing:0.1em; text-transform:uppercase; z-index:200; opacity:0.5; }
+.slide { position:fixed; inset:0; display:flex; flex-direction:column; justify-content:center; padding:clamp(3rem,8vw,8rem); opacity:0; visibility:hidden; transition:opacity 0.5s ease, transform 0.5s ease; transform:translateX(30px); }
+.slide.active { opacity:1; visibility:visible; transform:translateX(0); }
+.slide.prev { transform:translateX(-30px); }
+.kicker { font-size:clamp(0.6rem,1vw,0.75rem); font-weight:600; text-transform:uppercase; letter-spacing:0.15em; color:var(--accent); margin-bottom:1.5rem; }
+.kicker.red { color:var(--accent-red); }
+.kicker.green { color:var(--accent-green); }
+.kicker.orange { color:var(--accent-orange); }
+.kicker.purple { color:var(--accent-purple); }
+h1 { font-size:clamp(2.5rem,5vw,4.5rem); font-weight:800; letter-spacing:-0.03em; line-height:1.1; margin-bottom:1.5rem; }
+h2 { font-size:clamp(1.8rem,3.5vw,3rem); font-weight:700; letter-spacing:-0.02em; line-height:1.15; margin-bottom:1.2rem; }
+h3 { font-size:clamp(1.1rem,1.8vw,1.5rem); font-weight:600; line-height:1.3; margin-bottom:0.8rem; }
+.subtitle { font-size:clamp(1rem,1.8vw,1.6rem); color:var(--fg-dim); font-weight:400; line-height:1.5; max-width:50ch; }
+.body { font-size:clamp(0.85rem,1.2vw,1.1rem); color:var(--fg-dim); font-weight:400; line-height:1.6; max-width:60ch; margin-top:1.5rem; }
+.tagline { position:absolute; bottom:clamp(2rem,4vw,4rem); left:clamp(3rem,8vw,8rem); font-size:0.75rem; color:var(--fg-muted); }
+.gradient-text { background:var(--gradient-blue); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.gradient-warm { background:var(--gradient-warm); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.gradient-green { background:var(--gradient-green); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* Quote */
+.quote-block { border-left:3px solid var(--accent); padding-left:2rem; margin:1rem 0; }
+.quote-block.red { border-color:var(--accent-red); }
+.quote-block.green { border-color:var(--accent-green); }
+.quote-block.orange { border-color:var(--accent-orange); }
+.quote-text { font-size:clamp(1.4rem,2.8vw,2.4rem); font-weight:600; line-height:1.35; letter-spacing:-0.01em; }
+
+/* Stats */
+.stats-row { display:flex; gap:clamp(2rem,4vw,4rem); margin:2rem 0; flex-wrap:wrap; }
+.stat { flex:1; min-width:120px; }
+.stat-value { font-size:clamp(2rem,4vw,3.5rem); font-weight:800; letter-spacing:-0.03em; }
+.stat-value.blue { color:var(--accent); }
+.stat-value.green { color:var(--accent-green); }
+.stat-value.red { color:var(--accent-red); }
+.stat-value.orange { color:var(--accent-orange); }
+.stat-value.purple { color:var(--accent-purple); }
+.stat-label { font-size:clamp(0.7rem,1vw,0.9rem); color:var(--fg-dim); margin-top:0.3rem; }
+
+/* Cards */
+.cards-grid { display:grid; gap:1.2rem; margin:1.5rem 0; }
+.cards-grid.cols-2 { grid-template-columns:repeat(2,1fr); }
+.cards-grid.cols-3 { grid-template-columns:repeat(3,1fr); }
+.cards-grid.cols-4 { grid-template-columns:repeat(4,1fr); }
+.card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:clamp(1.2rem,2vw,2rem); transition:border-color 0.3s; }
+.card:hover { border-color:var(--accent); }
+.card.border-green { border-color:var(--accent-green); }
+.card.border-red { border-color:var(--accent-red); }
+.card.border-orange { border-color:var(--accent-orange); }
+.card.border-blue { border-color:var(--accent); }
+.card.border-purple { border-color:var(--accent-purple); }
+.card-badge { display:inline-block; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; padding:0.2rem 0.6rem; border-radius:6px; margin-bottom:0.8rem; background:rgba(41,151,255,0.15); color:var(--accent); }
+.card-badge.green { background:rgba(48,209,88,0.15); color:var(--accent-green); }
+.card-badge.red { background:rgba(255,69,58,0.15); color:var(--accent-red); }
+.card-badge.orange { background:rgba(255,159,10,0.15); color:var(--accent-orange); }
+.card-title { font-size:clamp(0.95rem,1.3vw,1.15rem); font-weight:600; margin-bottom:0.5rem; }
+.card-body { font-size:clamp(0.75rem,1vw,0.9rem); color:var(--fg-dim); line-height:1.5; }
+
+/* Table */
+.table-wrap { margin:1.5rem 0; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:clamp(0.75rem,1vw,0.95rem); }
+th { text-align:left; padding:0.8rem 1rem; color:var(--fg-muted); font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; border-bottom:1px solid var(--card-border); }
+td { padding:0.8rem 1rem; border-bottom:1px solid var(--card-border); color:var(--fg-dim); }
+td.highlight { color:var(--fg); font-weight:600; }
+td.green { color:var(--accent-green); }
+td.red { color:var(--accent-red); }
+td.orange { color:var(--accent-orange); }
+td.blue { color:var(--accent); }
+.badge { display:inline-block; font-size:0.65rem; font-weight:600; padding:0.15rem 0.5rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; }
+.badge.green { background:rgba(48,209,88,0.15); color:var(--accent-green); }
+.badge.red { background:rgba(255,69,58,0.15); color:var(--accent-red); }
+.badge.orange { background:rgba(255,159,10,0.15); color:var(--accent-orange); }
+.badge.blue { background:rgba(41,151,255,0.15); color:var(--accent); }
+
+/* Split */
+.split-cols { display:grid; grid-template-columns:1fr 1fr; gap:3rem; margin:1.5rem 0; }
+.split-title { font-size:clamp(1rem,1.5vw,1.3rem); font-weight:700; margin-bottom:1rem; }
+.split-title.green { color:var(--accent-green); }
+.split-title.red { color:var(--accent-red); }
+.split-title.blue { color:var(--accent); }
+.split-list { list-style:none; }
+.split-list li { padding:0.4rem 0; padding-left:1.2rem; position:relative; font-size:clamp(0.8rem,1.1vw,1rem); color:var(--fg-dim); line-height:1.5; }
+.split-list li::before { content:''; position:absolute; left:0; top:0.7rem; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.split-list li.green::before { background:var(--accent-green); }
+.split-list li.red::before { background:var(--accent-red); }
+.split-list li.orange::before { background:var(--accent-orange); }
+
+/* Timeline */
+.timeline { display:flex; gap:0; margin:2rem 0; }
+.tl-item { flex:1; position:relative; padding-top:2rem; }
+.tl-item::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--card-border); }
+.tl-item::after { content:''; position:absolute; top:-4px; left:1rem; width:10px; height:10px; border-radius:50%; background:var(--fg-muted); }
+.tl-item.active::before { background:var(--accent); }
+.tl-item.active::after { background:var(--accent); }
+.tl-item.urgent::before { background:var(--accent-red); }
+.tl-item.urgent::after { background:var(--accent-red); }
+.tl-phase { font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--fg-muted); margin-bottom:0.3rem; }
+.tl-title { font-size:clamp(0.85rem,1.1vw,1.05rem); font-weight:600; margin-bottom:0.3rem; }
+.tl-body { font-size:clamp(0.7rem,0.9vw,0.85rem); color:var(--fg-dim); line-height:1.4; }
+
+/* Code */
+code { font-family:'SF Mono',Consolas,'Courier New',monospace; background:var(--card-bg); border:1px solid var(--card-border); padding:0.15em 0.4em; border-radius:4px; font-size:0.85em; }
+.code-block { background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; padding:1.5rem 2rem; font-family:'SF Mono',Consolas,monospace; font-size:clamp(0.7rem,1vw,0.9rem); line-height:1.7; overflow-x:auto; margin:1.5rem 0; white-space:pre; }
+.code-dim { color:var(--fg-muted); }
+.code-accent { color:var(--accent); }
+.code-green { color:var(--accent-green); }
+.code-red { color:var(--accent-red); }
+.code-orange { color:var(--accent-orange); }
+
+/* Nav */
+.nav { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:100; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--fg-muted); opacity:0.3; cursor:pointer; transition:all 0.3s; }
+.dot.active { opacity:1; background:var(--accent); }
+.dot:hover { opacity:0.7; }
+.counter { position:fixed; bottom:2rem; right:2rem; font-size:0.7rem; color:var(--fg-muted); z-index:100; }
+
+/* List */
+.list-items { list-style:none; margin:1rem 0; }
+.list-items li { padding:0.6rem 0 0.6rem 1.5rem; position:relative; font-size:clamp(0.9rem,1.3vw,1.15rem); color:var(--fg-dim); line-height:1.5; }
+.list-items li::before { content:''; position:absolute; left:0; top:1rem; width:8px; height:8px; border-radius:50%; background:var(--accent); }
+.list-items li.green::before { background:var(--accent-green); }
+.list-items li.red::before { background:var(--accent-red); }
+.list-items li.orange::before { background:var(--accent-orange); }
+.list-items li.purple::before { background:var(--accent-purple); }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<button class="theme-toggle" id="themeToggle" title="Theme wechseln">&#9681;</button>
+<div class="watermark">Vertraulich</div>
+
+<!-- Slide 1: Title -->
+<div class="slide active">
+    <div class="kicker">Collana IT Gruppe – Datenschutz-Initiative</div>
+    <h1><span class="gradient-text">PII Guard</span><br>Datenschutz-Filter für KI-Coding-Tools</h1>
+    <div class="subtitle">Personenbezogene Daten erkennen, maskieren, auditieren. Lokal. Automatisch. ISO 27001-konform.</div>
+    <div class="tagline">Pfeiltasten zur Navigation – Thomas Körting / b-imtec GmbH</div>
+</div>
+
+<!-- Slide 2: Quote – Das Problem -->
+<div class="slide">
+    <div class="kicker red">Das Problem</div>
+    <div class="quote-block red">
+        <div class="quote-text">Jeder Prompt an Claude, Cursor oder Copilot kann personenbezogene Daten enthalten. Namen, E-Mails, IBANs – alles geht ungeschützt an die API.</div>
+    </div>
+    <div class="body">Entwickler arbeiten mit echten Daten. Kundennamen in SQL-Queries, E-Mail-Adressen in Bug-Reports, Telefonnummern in Test-Szenarien. All das landet bei jedem Prompt ungeschützt beim KI-Anbieter.</div>
+</div>
+
+<!-- Slide 3: Split – Vorher / Nachher -->
+<div class="slide">
+    <div class="kicker">Live-Beispiel</div>
+    <h2>Was sich ändert</h2>
+    <div class="split-cols">
+        <div>
+            <div class="split-title red">Ohne PII Guard</div>
+            <div class="code-block"><span class="code-dim">Du tippst:</span>
+<span class="code-red">"Optimiere die Query für
+ Kunde Max Müller (max@firma.de)
+ IBAN DE89 3704 0044 0532 0130 00"</span>
+
+<span class="code-dim">Claude sieht:</span>
+<span class="code-red">Echte Daten. Ungeschützt. Beim Anbieter.</span></div>
+        </div>
+        <div>
+            <div class="split-title green">Mit PII Guard</div>
+            <div class="code-block"><span class="code-dim">Du tippst:</span>
+<span class="code-dim">"Optimiere die Query für
+ Kunde Max Müller (max@firma.de)"</span>
+
+<span class="code-dim">Claude sieht:</span>
+<span class="code-green">"Optimiere die Query für
+ Kunde Hans Schmidt (hs@beispiel.de)"</span>
+
+<span class="code-dim">IBAN: </span><span class="code-red">GEBLOCKT</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 4: Stats -->
+<div class="slide">
+    <div class="kicker">Auf einen Blick</div>
+    <h2>PII Guard in Zahlen</h2>
+    <div class="stats-row">
+        <div class="stat">
+            <div class="stat-value blue">11</div>
+            <div class="stat-label">PII-Typen erkannt</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value green">93</div>
+            <div class="stat-label">Tests, alle grün</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value orange">15</div>
+            <div class="stat-label">Audit-Log Felder (ISO 27001)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value purple">0</div>
+            <div class="stat-label">Daten die den Rechner verlassen</div>
+        </div>
+    </div>
+    <div class="body">Alles läuft lokal. Keine Cloud, kein Proxy, kein zusätzlicher Datenverarbeiter.</div>
+</div>
+
+<!-- Slide 5: Cards – Drei Schutzschichten -->
+<div class="slide">
+    <div class="kicker">Konzept</div>
+    <h2>Drei Schutzschichten</h2>
+    <div class="cards-grid cols-3">
+        <div class="card border-blue">
+            <div class="card-badge">Schicht 0</div>
+            <div class="card-title">Git – Secrets</div>
+            <div class="card-body">Gitleaks als Pre-Commit Hook. Fängt API-Keys, Passwörter und Tokens bevor sie ins Repository gelangen.</div>
+        </div>
+        <div class="card border-green">
+            <div class="card-badge green">Schicht 1</div>
+            <div class="card-title">Prompt – PII</div>
+            <div class="card-body">PII Guard als Claude Code Hook. Maskiert Namen, E-Mails und Kundendaten automatisch bevor der Prompt an die API geht.</div>
+        </div>
+        <div class="card border-orange">
+            <div class="card-badge orange">Schicht 2</div>
+            <div class="card-title">Dateien – Ausschluss</div>
+            <div class="card-body">.claudeignore für ganze Dateien. Schließt .env, Credentials und sensible Konfigurationen komplett aus.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 6: Table – PII-Typen und Aktionen -->
+<div class="slide">
+    <div class="kicker">Regeln</div>
+    <h2>Was wird erkannt, was passiert</h2>
+    <div class="table-wrap">
+        <table>
+            <tr><th>PII-Typ</th><th>Beispiel</th><th>Aktion</th><th>Ergebnis</th></tr>
+            <tr><td class="highlight">Passwort, API-Key, IBAN</td><td>DE89 3704 0044...</td><td class="red"><span class="badge red">Block</span></td><td>Prompt wird nicht gesendet</td></tr>
+            <tr><td class="highlight">Name, E-Mail, Telefon</td><td>Max Müller, max@firma.de</td><td class="green"><span class="badge green">Mask</span></td><td>Durch Fake-Daten ersetzt</td></tr>
+            <tr><td class="highlight">Adresse, Ort, Geburtsdatum</td><td>München, 15.03.1985</td><td class="green"><span class="badge green">Mask</span></td><td>Durch Fake-Daten ersetzt</td></tr>
+            <tr><td class="highlight">Firmenname</td><td>SAP AG</td><td class="orange"><span class="badge orange">Warn</span></td><td>Hinweis, User entscheidet</td></tr>
+        </table>
+    </div>
+    <div class="body">Regeln sind konfigurierbar in <code>.pii-guard.yaml</code> – zentral versioniert, lokal ausgeführt.</div>
+</div>
+
+<!-- Slide 7: Split – Typerhaltende Substitution -->
+<div class="slide">
+    <div class="kicker green">Kernfeature</div>
+    <h2>Typerhaltende Substitution</h2>
+    <div class="split-cols">
+        <div>
+            <div class="split-title red">Naiver Ansatz</div>
+            <ul class="split-list">
+                <li class="red">Max Müller wird zu [PERSON_1]</li>
+                <li class="red">max@firma.de wird zu [EMAIL_1]</li>
+                <li class="red">München wird zu [CITY_1]</li>
+                <li class="red">KI bekommt kaputte Daten</li>
+                <li class="red">Ergebnisse sind unbrauchbar</li>
+            </ul>
+        </div>
+        <div>
+            <div class="split-title green">PII Guard</div>
+            <ul class="split-list">
+                <li class="green">Max Müller wird zu Hans Schmidt</li>
+                <li class="green">max@firma.de wird zu hs@beispiel.de</li>
+                <li class="green">München wird zu Freiburg</li>
+                <li class="green">KI bekommt gültige Daten</li>
+                <li class="green">Ergebnisse sind korrekt</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 8: Quote – Reverse Mapping -->
+<div class="slide">
+    <div class="kicker">Und zurück</div>
+    <div class="quote-block green">
+        <div class="quote-text">Die KI-Antwort enthält Fake-Daten. PII Guard mappt sie lokal zurück auf die echten Daten. Das Mapping verlässt nie den Rechner.</div>
+    </div>
+    <div class="body">Das Mapping wird pro Session in <code>.pii-guard/session-map.json</code> gespeichert. Atomares Schreiben, automatisches Cleanup, Windows-kompatibel.</div>
+</div>
+
+<!-- Slide 9: Cards – Architektur -->
+<div class="slide">
+    <div class="kicker">Architektur</div>
+    <h2>Zwei Betriebsmodi</h2>
+    <div class="cards-grid cols-2">
+        <div class="card border-blue">
+            <div class="card-badge">Modus A</div>
+            <div class="card-title">Lokale Installation (pip)</div>
+            <div class="card-body">Python 3.11+, pip install, spaCy-Modelle lokal. Für Einzelentwickler oder Maschinen mit Python-Setup. Hook läuft als Subprocess.</div>
+        </div>
+        <div class="card border-purple">
+            <div class="card-badge orange">Modus B – empfohlen</div>
+            <div class="card-title">Docker-Daemon</div>
+            <div class="card-body">Container mit vorinstallierten Modellen (~2 GB). Kein lokales Python nötig. Hook sendet HTTP an localhost:7437. Ein Befehl: <code>pii-guard docker start</code></div>
+        </div>
+    </div>
+    <div class="body">Beide Modi nutzen die gleiche Pipeline: Presidio (NER) + Faker (Substitution) + Audit-Logger. Der Docker-Modus ist für Team-Rollouts empfohlen.</div>
+</div>
+
+<!-- Slide 10: Stats – ISO 27001 -->
+<div class="slide">
+    <div class="kicker orange">Compliance</div>
+    <h2>ISO 27001 – was ein Auditor sehen will</h2>
+    <div class="stats-row">
+        <div class="stat">
+            <div class="stat-value blue">A.8.11</div>
+            <div class="stat-label">Data Masking</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value green">A.8.12</div>
+            <div class="stat-label">Data Leakage Prevention</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value orange">A.8.15</div>
+            <div class="stat-label">Logging (15 Felder)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value purple">A.5.34</div>
+            <div class="stat-label">PII Protection</div>
+        </div>
+    </div>
+    <div class="body">Das Audit-Log erfüllt ISO 27002:2022 Clause 8.15 mit 15 Pflichtfeldern: Event-ID, Session-ID, User, System, PII-Typ, Confidence, Aktion, Outcome, Config-Hash, Tool-Version und mehr.</div>
+</div>
+
+<!-- Slide 11: Cards – Audit-Features -->
+<div class="slide">
+    <div class="kicker">Audit-Werkzeuge</div>
+    <h2>Wenn der Auditor kommt</h2>
+    <div class="cards-grid cols-3">
+        <div class="card border-blue">
+            <div class="card-badge">Report</div>
+            <div class="card-title">Compliance-Report</div>
+            <div class="card-body"><code>pii-guard audit-report</code> generiert einen strukturierten Report: Zusammenfassung, Aufschlüsselung nach Typ und Aktion, Confidence-Statistik, Allow-List. Als Markdown oder CSV.</div>
+        </div>
+        <div class="card border-green">
+            <div class="card-badge green">Test</div>
+            <div class="card-title">Wirksamkeitstest</div>
+            <div class="card-body"><code>pii-guard audit-test</code> führt vordefinierte Testfälle durch. PASS/FAIL pro PII-Typ, False-Positive-Prüfung, Schwellenwert konfigurierbar. Wird automatisch ins Audit-Log geschrieben.</div>
+        </div>
+        <div class="card border-orange">
+            <div class="card-badge orange">Export</div>
+            <div class="card-title">CSV-Export</div>
+            <div class="card-body"><code>pii-guard audit-export</code> exportiert das Log als CSV. Filterbar nach Zeitraum. Öffnet direkt in Excel. Log-Rotation nach Größe (MB) und Alter (Tage, Default: 365).</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 12: Table – DSGVO -->
+<div class="slide">
+    <div class="kicker">DSGVO Art. 32</div>
+    <h2>Technische Maßnahmen</h2>
+    <div class="table-wrap">
+        <table>
+            <tr><th>Anforderung</th><th>Umsetzung</th><th>Status</th></tr>
+            <tr><td class="highlight">a) Pseudonymisierung</td><td>Typerhaltende Substitution (Faker)</td><td class="green"><span class="badge green">Fertig</span></td></tr>
+            <tr><td class="highlight">b) Vertraulichkeit</td><td>Lokale Verarbeitung, kein Cloud-Abfluss</td><td class="green"><span class="badge green">Fertig</span></td></tr>
+            <tr><td class="highlight">c) Wiederherstellung</td><td>Reverse-Mapping (Session-basiert)</td><td class="green"><span class="badge green">Fertig</span></td></tr>
+            <tr><td class="highlight">d) Wirksamkeitsprüfung</td><td>audit-test, Compliance-Report, Audit-Log</td><td class="green"><span class="badge green">Fertig</span></td></tr>
+        </table>
+    </div>
+    <div class="body">PII Guard ist kein neuer Datenverarbeiter. Kein AVV nötig. Alles bleibt auf dem Rechner des Entwicklers.</div>
+</div>
+
+<!-- Slide 13: List – Installation -->
+<div class="slide">
+    <div class="kicker">Onboarding</div>
+    <h2>Installation in 4 Schritten</h2>
+    <ul class="list-items">
+        <li class="blue">Docker Desktop installieren (falls nicht vorhanden)</li>
+        <li class="green"><code>pip install pii-guard</code> und <code>pii-guard init</code> im Projekt</li>
+        <li class="orange"><code>pii-guard docker start --build</code> – Daemon starten</li>
+        <li class="purple">Claude Code Hook registrieren (JSON in settings.json)</li>
+    </ul>
+    <div class="body">Danach läuft PII Guard automatisch bei jedem Prompt. Kein manueller Schritt nötig. Die Config (<code>.pii-guard.yaml</code>) wird ins Repo eingecheckt – zentrale Regeln, lokale Ausführung.</div>
+</div>
+
+<!-- Slide 14: Cards – Für die Gruppe -->
+<div class="slide">
+    <div class="kicker purple">Collana-Strategie</div>
+    <h2>Warum als Gruppe</h2>
+    <div class="cards-grid cols-2">
+        <div class="card border-green">
+            <div class="card-title">Gemeinsamer Standard</div>
+            <div class="card-body">Eine Config-Hierarchie: Gruppen-Policy definiert Mindeststandards (Pflicht-Block-Typen, Mindest-Threshold). Firmen und Projekte können erweitern, aber nicht abschwächen.</div>
+        </div>
+        <div class="card border-blue">
+            <div class="card-title">Einheitliches Reporting</div>
+            <div class="card-body">Alle Firmen loggen im gleichen 15-Felder-Format. Reports lassen sich zusammenführen. Der Gruppen-CISO sieht auf einen Blick: Wie viele PII-Funde grupppenweit, welche Typen, welche Aktionen.</div>
+        </div>
+        <div class="card border-orange">
+            <div class="card-title">Einfaches Deployment</div>
+            <div class="card-body">Docker-Image wird einmal gebaut, alle nutzen es. Update = neues Image ziehen. Kein Python-Setup auf Windows-Rechnern nötig. Funktioniert auf Windows, Mac und Linux.</div>
+        </div>
+        <div class="card border-purple">
+            <div class="card-title">Compliance-Vorteil</div>
+            <div class="card-body">Wer als erste IT-Gruppe DSGVO-konforme KI-Nutzung nachweisen kann, hat einen Vorteil – gegenüber Kunden und bei Audits. Das Tool ist Open Source (MIT), keine Lizenzkosten.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 15: Timeline – Rollout -->
+<div class="slide">
+    <div class="kicker">Fahrplan</div>
+    <h2>Rollout-Strategie</h2>
+    <div class="timeline">
+        <div class="tl-item active">
+            <div class="tl-phase">Phase 1</div>
+            <div class="tl-title">Demo</div>
+            <div class="tl-body">Vorstellung in der Gruppe. Live-Demo. Fragen und Feedback sammeln.</div>
+        </div>
+        <div class="tl-item active">
+            <div class="tl-phase">Phase 2</div>
+            <div class="tl-title">Pilot</div>
+            <div class="tl-body">2-3 Firmen testen im Alltag. Docker-Deployment. Feedback sammeln.</div>
+        </div>
+        <div class="tl-item">
+            <div class="tl-phase">Phase 3</div>
+            <div class="tl-title">Gruppen-Rollout</div>
+            <div class="tl-body">Config-Hierarchie, Onboarding-Guide, Compliance-Brief für GF.</div>
+        </div>
+        <div class="tl-item">
+            <div class="tl-phase">Phase 4</div>
+            <div class="tl-title">Erweiterung</div>
+            <div class="tl-body">Cursor/Copilot Support, Policy-Templates, zentrales Dashboard.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 16: Table – Tech-Stack -->
+<div class="slide">
+    <div class="kicker">Unter der Haube</div>
+    <h2>Tech-Stack</h2>
+    <div class="table-wrap">
+        <table>
+            <tr><th>Komponente</th><th>Technologie</th><th>Lizenz</th></tr>
+            <tr><td class="highlight">PII-Erkennung</td><td>Microsoft Presidio + spaCy (de/en)</td><td>MIT</td></tr>
+            <tr><td class="highlight">Fake-Daten</td><td>Faker (konfigurierbare Locale)</td><td>MIT</td></tr>
+            <tr><td class="highlight">Claude Code Hook</td><td>user_prompt_submit (nativ)</td><td>--</td></tr>
+            <tr><td class="highlight">Docker-Server</td><td>Python stdlib http.server</td><td>--</td></tr>
+            <tr><td class="highlight">Secret-Scanning</td><td>Gitleaks (optional)</td><td>MIT</td></tr>
+            <tr><td class="highlight">Audit-Log</td><td>JSONL + CSV-Export</td><td>--</td></tr>
+        </table>
+    </div>
+    <div class="body">Keine proprietären Abhängigkeiten. Alles Open Source. Kein Vendor Lock-in.</div>
+</div>
+
+<!-- Slide 17: Quote – Grenzen -->
+<div class="slide">
+    <div class="kicker orange">Ehrliche Einschätzung</div>
+    <div class="quote-block orange">
+        <div class="quote-text">PII Guard ist kein Allheilmittel. Es erkennt bekannte PII-Muster, aber keine Kontexte. Und es schützt den Prompt-Kanal – nicht den gesamten Datenfluss.</div>
+    </div>
+    <div class="body">NER-basierte Erkennung hat Grenzen: Ungewöhnliche Namen, Abkürzungen oder domänenspezifische PII können durchrutschen. Die Confidence-Schwelle ist konfigurierbar. Regelmäßige Wirksamkeitstests (<code>pii-guard audit-test</code>) machen Lücken sichtbar.</div>
+</div>
+
+<!-- Slide 18: Closing -->
+<div class="slide">
+    <div class="kicker green">Zusammenfassung</div>
+    <h1><span class="gradient-text">Bereit für den Pilot</span></h1>
+    <div class="subtitle">PII Guard schützt was geschützt werden muss – ohne den Workflow zu stören.</div>
+    <div class="stats-row" style="margin-top:3rem">
+        <div class="stat">
+            <div class="stat-value green">v0.2.0</div>
+            <div class="stat-label">Demo- und Pilot-fähig</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value blue">93</div>
+            <div class="stat-label">Tests, alle grün</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value orange">MIT</div>
+            <div class="stat-label">Open Source, keine Kosten</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value purple">0</div>
+            <div class="stat-label">Daten die rausgehen</div>
+        </div>
+    </div>
+    <div class="tagline">github.com/tkoerting/pii-guard – Thomas Körting / b-imtec GmbH</div>
+</div>
+
+<!-- Navigation -->
+<div class="nav" id="slideNav"></div>
+<div class="counter" id="slideCounter"></div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const nav = document.getElementById('slideNav');
+  const counter = document.getElementById('slideCounter');
+  const progressBar = document.getElementById('progressBar');
+  let current = 0;
+  const total = slides.length;
+
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', () => goTo(i));
+    nav.appendChild(dot);
+  }
+
+  function updateProgress() {
+    progressBar.style.width = ((current + 1) / total) * 100 + '%';
+  }
+
+  function goTo(n) {
+    if (n < 0 || n >= total || n === current) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('prev');
+    setTimeout(() => slides.forEach(s => s.classList.remove('prev')), 500);
+    const prev = current;
+    current = n;
+    slides[current].classList.add('active');
+    nav.children[prev].classList.remove('active');
+    nav.children[current].classList.add('active');
+    counter.textContent = (current + 1) + ' / ' + total;
+    updateProgress();
+  }
+
+  counter.textContent = '1 / ' + total;
+  updateProgress();
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+  });
+
+  let tx = 0;
+  document.addEventListener('touchstart', (e) => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    const d = tx - e.changedTouches[0].clientX;
+    if (Math.abs(d) > 50) { d > 0 ? goTo(current + 1) : goTo(current - 1); }
+  });
+
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') !== 'light';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      toggle.textContent = isDark ? '\u25D0' : '\u25D1';
+    });
+  }
+})();
+</script>
+</body>
+</html>
