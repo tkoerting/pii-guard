@@ -243,4 +243,6 @@ hinweisen, dass Auditing nur mit projektspezifischer Config funktioniert.
 | 6 | Container-Down unsichtbar | Mittel | – |
 | 7 | Skills in VS Code ohne Ausgabe + PATH-Problem | Mittel | – |
 | 8 | Audit-Log nur mit projektspezifischer Config | Mittel | – |
-| 9 | Bidirektionales Mapping | Feature | [#4](https://github.com/b-imtec-gmbh/pii-guard/issues/4) |
+| 9 | False Positive: "Adam" als PERSON (ML-Kontext) | Mittel | [#6](https://github.com/b-imtec-gmbh/pii-guard/issues/6) |
+| 10 | LOCATION im Satzkontext nicht erkannt | Gering | – |
+| 11 | Bidirektionales Mapping | Feature | [#4](https://github.com/b-imtec-gmbh/pii-guard/issues/4) |
