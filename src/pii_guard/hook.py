@@ -8,10 +8,16 @@ Es empfängt den Prompt auf stdin als JSON und gibt eine Entscheidung zurück.
 Registrierung in der Claude Code settings.json (Pfad plattformabhängig):
 {
   "hooks": {
-    "user_prompt_submit": [
+    "UserPromptSubmit": [
       {
-        "command": "python -m pii_guard.hook",
-        "timeout": 5000
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -m pii_guard.hook",
+            "timeout": 15000
+          }
+        ]
       }
     ]
   }
@@ -60,7 +66,16 @@ def _process_via_docker(prompt: str, config: dict) -> dict:
             return json.loads(resp.read())
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         on_error = config.get("on_error", "allow")
-        log.warning("Docker-Daemon nicht erreichbar (%s), Fallback: %s", e, on_error)
+        log.warning(
+            "Docker-Daemon nicht erreichbar (%s), Fallback: %s",
+            e, on_error,
+        )
+        print(
+            f"[PII Guard] Docker-Container nicht erreichbar. "
+            f"Fallback: {on_error}. "
+            f"Starte mit: docker start pii-guard",
+            file=sys.stderr,
+        )
         if on_error == "block":
             return {
                 "decision": "block",
@@ -137,7 +152,17 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
 
 
 def main() -> None:
-    """Entry point für den Claude Code Hook."""
+    """Entry point für den Claude Code Hook.
+
+    Claude Code Hook-Protokoll:
+    - Exit 0 + JSON auf stdout → Claude Code wertet decision/reason aus
+    - Exit 2 + Text auf stderr → Block, Text wird dem User angezeigt
+    - Exit 0 ohne JSON → Prompt geht durch
+
+    Wir nutzen Exit 0 + JSON für allow/warn und Exit 2 + stderr
+    für block, da die VS Code Extension Exit-2-Blocks zuverlässiger
+    anzeigt als JSON-Blocks.
+    """
     # Logging auf stderr – stdout ist für Hook-JSON reserviert
     logging.basicConfig(
         level=logging.WARNING,
@@ -158,6 +183,12 @@ def main() -> None:
             result = _process_via_docker(prompt, config)
         else:
             result = process_prompt(prompt, config)
+
+        if result.get("decision") == "block":
+            # Block: reason auf stderr, Exit 2
+            reason = result.get("reason", "PII Guard: Prompt blockiert.")
+            print(reason, file=sys.stderr)
+            sys.exit(2)
 
         json.dump(result, sys.stdout)
 
