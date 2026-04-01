@@ -1,0 +1,11 @@
+# PII Guard Code Owners
+# Jede Änderung an diesen Bereichen erfordert ein Review
+# vom jeweiligen Owner bevor der PR gemergt werden kann.
+
+# Default: Thomas reviewed alles
+* @tkoerting
+
+# Kernmodule: mindestens 1 Review
+src/pii_guard/detector.py    @tkoerting
+src/pii_guard/hook.py        @tkoerting
+src/pii_guard/recognizers.py @tkoerting
