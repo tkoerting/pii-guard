@@ -56,29 +56,30 @@ class TestProcessPrompt:
         assert "reason" in result
 
     @patch("pii_guard.detector.detect_pii")
-    @patch("pii_guard.substitutor.substitute_pii", return_value="Hans Schmidt arbeitet hier")
-    def test_auto_mask_substitutes(self, mock_sub, mock_detect, config):
+    def test_auto_mask_blocks(self, mock_detect, config):
+        """auto_mask Findings blocken den Prompt (keine Substitution mehr)."""
         mock_detect.return_value = [_finding("PERSON", "auto_mask")]
         result = process_prompt("Max Mueller arbeitet hier", config)
-        assert result["decision"] == "allow"
-        assert result["prompt"] == "Hans Schmidt arbeitet hier"
+        assert result["decision"] == "block"
+        assert "reason" in result
+        assert "Personenbezogene Daten" in result["reason"]
 
     @patch("pii_guard.detector.detect_pii")
-    def test_warn_includes_message(self, mock_detect, config):
+    def test_warn_includes_system_message(self, mock_detect, config):
         mock_detect.return_value = [_finding("ORGANIZATION", "warn", "Firma GmbH")]
         result = process_prompt("Kunde: Firma GmbH", config)
         assert result["decision"] == "allow"
-        assert "message" in result
-        assert "Hinweis" in result["message"]
+        assert "systemMessage" in result
+        assert "Hinweis" in result["systemMessage"]
 
     @patch("pii_guard.detector.detect_pii")
-    @patch("pii_guard.substitutor.substitute_pii", return_value="Hans Schmidt bei ACME")
-    def test_mixed_warn_and_mask(self, mock_sub, mock_detect, config):
+    def test_mixed_warn_and_mask_blocks(self, mock_detect, config):
+        """Bei gemischten Findings (auto_mask + warn) wird geblockt."""
         mock_detect.return_value = [
             _finding("PERSON", "auto_mask", "Max Mueller", 0, 11),
             _finding("ORGANIZATION", "warn", "Firma GmbH", 16, 26),
         ]
         result = process_prompt("Max Mueller bei Firma GmbH", config)
-        assert result["decision"] == "allow"
-        assert "prompt" in result  # Mask wurde angewendet
-        assert "message" in result  # Warnung ist dabei
+        assert result["decision"] == "block"
+        assert "reason" in result
+        assert "Warnung" in result["reason"] or "erkannt" in result["reason"]

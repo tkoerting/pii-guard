@@ -70,12 +70,17 @@ def _process_via_docker(prompt: str, config: dict) -> dict:
 
 
 def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) -> dict:
-    """Verarbeitet einen Prompt und gibt die Hook-Entscheidung zurück."""
-    # Lazy Imports: schwere Abhängigkeiten (Presidio, spaCy, Faker) erst hier laden.
-    # Im Docker-Modus wird diese Funktion nicht aufgerufen – der Hook bleibt dünn.
+    """Verarbeitet einen Prompt und gibt die Hook-Entscheidung zurück.
+
+    Claude Code unterstützt kein 'prompt'-Feld in der Hook-Antwort.
+    Daher wird bei PII-Funden geblockt (decision: block) mit einer
+    Auflistung der gefundenen Daten. Der User kann dann entscheiden,
+    ob er den Prompt anpassen möchte.
+
+    Warnungen (action: warn) werden als systemMessage durchgereicht,
+    blockieren aber nicht.
+    """
     from pii_guard.detector import detect_pii
-    from pii_guard.substitutor import substitute_pii
-    from pii_guard.mapper import SessionMapper
     from pii_guard.audit import log_findings
 
     sid = session_id or str(uuid4())
@@ -86,38 +91,40 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
         log_event("PROMPT_ALLOWED", config, session_id=sid, details={"pii_count": 0})
         return {"decision": "allow"}
 
-    # Prüfe ob etwas geblockt werden muss
+    log_findings(findings, config, session_id=sid, prompt=prompt)
+
+    # Harte Secrets – immer blocken
     blocked = [f for f in findings if f.action == "block"]
     if blocked:
         reasons = [f"{f.entity_type}: '{f.masked_preview}'" for f in blocked]
-        log_findings(findings, config, session_id=sid, prompt=prompt)
         return {
             "decision": "block",
             "reason": f"PII Guard: Sensible Daten erkannt – {', '.join(reasons)}",
         }
 
-    warnings = [f for f in findings if f.action == "warn"]
+    # Auto-Mask Findings – ebenfalls blocken, da wir den Prompt
+    # nicht modifizieren können
     masks = [f for f in findings if f.action == "auto_mask"]
+    warnings = [f for f in findings if f.action == "warn"]
 
-    log_findings(findings, config, session_id=sid, prompt=prompt)
+    if masks:
+        details = [f"{f.entity_type}: '{f.masked_preview}'" for f in masks]
+        reason = f"PII Guard: Personenbezogene Daten erkannt – {', '.join(details)}. Bitte entferne die PII aus deinem Prompt."
+        if warnings:
+            warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
+            reason += f" Zusaetzlich erkannt (Warnung): {', '.join(warn_parts)}"
+        return {
+            "decision": "block",
+            "reason": reason,
+        }
 
-    # Warn-Message zusammenbauen (falls Warnungen vorhanden)
-    warn_message = ""
+    # Nur Warnungen – durchlassen mit Hinweis
     if warnings:
         warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
-        warn_message = f"PII Guard Hinweis: {', '.join(warn_parts)} erkannt (nicht maskiert)"
-
-    # Auto-Mask anwenden
-    if masks:
-        mapper = SessionMapper(config)
-        substituted_prompt = substitute_pii(prompt, masks, mapper, config)
-        result = {"decision": "allow", "prompt": substituted_prompt}
-        if warn_message:
-            result["message"] = warn_message
-        return result
-
-    if warnings:
-        return {"decision": "allow", "message": warn_message}
+        return {
+            "decision": "allow",
+            "systemMessage": f"PII Guard Hinweis: {', '.join(warn_parts)} erkannt (nicht maskiert)",
+        }
 
     return {"decision": "allow"}
 

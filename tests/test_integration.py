@@ -53,7 +53,8 @@ def _mock_presidio_results(*specs):
 
 class TestFullPipeline:
     @patch("pii_guard.detector._get_engine")
-    def test_mask_person_and_email(self, mock_engine, config):
+    def test_auto_mask_blocks_person_and_email(self, mock_engine, config):
+        """auto_mask Findings blocken den Prompt (neue Strategie)."""
         text = "Max Mueller (max@firma.de) braucht Hilfe"
         mock_engine.return_value.analyze.return_value = _mock_presidio_results(
             ("PERSON", 0, 11, 0.95),
@@ -62,14 +63,12 @@ class TestFullPipeline:
 
         result = process_prompt(text, config)
 
-        assert result["decision"] == "allow"
-        assert "prompt" in result
-        assert "Max Mueller" not in result["prompt"]
-        assert "max@firma.de" not in result["prompt"]
-        assert "braucht Hilfe" in result["prompt"]
+        assert result["decision"] == "block"
+        assert "reason" in result
+        assert "prompt" not in result
 
     @patch("pii_guard.detector._get_engine")
-    def test_block_overrides_mask(self, mock_engine, config):
+    def test_block_on_hard_secrets(self, mock_engine, config):
         text = "Passwort: geheim123, User: Max Mueller"
         mock_engine.return_value.analyze.return_value = _mock_presidio_results(
             ("PASSWORD", 10, 19, 0.99),
@@ -81,7 +80,7 @@ class TestFullPipeline:
         assert "prompt" not in result
 
     @patch("pii_guard.detector._get_engine")
-    def test_warn_with_message(self, mock_engine, config):
+    def test_warn_with_system_message(self, mock_engine, config):
         text = "SAP AG hat angerufen"
         mock_engine.return_value.analyze.return_value = _mock_presidio_results(
             ("ORGANIZATION", 0, 6, 0.85),
@@ -89,11 +88,12 @@ class TestFullPipeline:
 
         result = process_prompt(text, config)
         assert result["decision"] == "allow"
-        assert "message" in result
-        assert "prompt" not in result  # Kein Mask, nur Warning
+        assert "systemMessage" in result
+        assert "prompt" not in result
 
     @patch("pii_guard.detector._get_engine")
-    def test_mask_plus_warn(self, mock_engine, config):
+    def test_mask_plus_warn_blocks(self, mock_engine, config):
+        """Bei gemischten Findings (auto_mask + warn) wird geblockt."""
         text = "Max Mueller arbeitet bei SAP AG"
         mock_engine.return_value.analyze.return_value = _mock_presidio_results(
             ("PERSON", 0, 11, 0.95),
@@ -101,10 +101,8 @@ class TestFullPipeline:
         )
 
         result = process_prompt(text, config)
-        assert result["decision"] == "allow"
-        assert "prompt" in result
-        assert "Max Mueller" not in result["prompt"]
-        assert "message" in result
+        assert result["decision"] == "block"
+        assert "reason" in result
 
     @patch("pii_guard.detector._get_engine")
     def test_no_pii_passes_through(self, mock_engine, config):
@@ -120,25 +118,8 @@ class TestFullPipeline:
         # "b-imtec" ist in der Allow-List
         result = process_prompt("b-imtec macht gute Arbeit", config)
         assert result["decision"] == "allow"
-        assert "message" not in result
+        assert "systemMessage" not in result
         assert "prompt" not in result
-
-
-class TestReverseMapping:
-    @patch("pii_guard.detector._get_engine")
-    def test_reverse_map_restores_originals(self, mock_engine, config):
-        text = "Max Mueller braucht Hilfe"
-        mock_engine.return_value.analyze.return_value = _mock_presidio_results(
-            ("PERSON", 0, 11, 0.95),
-        )
-
-        result = process_prompt(text, config)
-        fake_prompt = result["prompt"]
-
-        # Reverse-Mapping
-        mapper = SessionMapper(config)
-        restored = mapper.reverse_map(fake_prompt)
-        assert "Max Mueller" in restored
 
 
 class TestAuditTrail:

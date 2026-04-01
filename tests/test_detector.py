@@ -81,8 +81,13 @@ class TestOverlapResolution:
     @patch("pii_guard.detector._get_engine")
     def test_non_overlapping_findings_kept(self, mock_engine):
         """Nicht-überlappende Findings bleiben alle erhalten."""
-        mock_r1 = MagicMock(entity_type="PERSON", start=0, end=10, score=0.9)
-        mock_r2 = MagicMock(entity_type="LOCATION", start=20, end=30, score=0.8)
+        # Positionen müssen zum Text passen:
+        # "Max Mueller wohnt in Freiburg Ost"
+        #  0123456789...            20
+        mock_r1 = MagicMock(entity_type="PERSON", start=0, end=11, score=0.9,
+                            recognition_metadata={"recognizer_name": "SpacyRecognizer"})
+        mock_r2 = MagicMock(entity_type="LOCATION", start=21, end=34, score=0.8,
+                            recognition_metadata={"recognizer_name": "SpacyRecognizer"})
         mock_engine.return_value.analyze.return_value = [mock_r1, mock_r2]
 
         config = {
@@ -90,7 +95,7 @@ class TestOverlapResolution:
             "rules": [{"types": ["PERSON", "LOCATION"], "action": "auto_mask"}],
             "allow_list": [],
         }
-        findings = detect_pii("Max Mueller wohnt in Freiburg xyz", config)
+        findings = detect_pii("Max Mueller wohnt in Freiburg Ost", config)
         assert len(findings) == 2
 
 
