@@ -13,7 +13,12 @@ from presidio_analyzer.predefined_recognizers import (
     CreditCardRecognizer,
 )
 
-from pii_guard.recognizers import GermanPhoneRecognizer, StandaloneIpRecognizer
+from pii_guard.recognizers import (
+    ApiKeyRecognizer,
+    GermanPhoneRecognizer,
+    PasswordRecognizer,
+    StandaloneIpRecognizer,
+)
 
 log = logging.getLogger("pii_guard.detector")
 
@@ -23,6 +28,8 @@ _EXTRA_RECOGNIZER_CLASSES = [
     CreditCardRecognizer,
     GermanPhoneRecognizer,
     StandaloneIpRecognizer,
+    ApiKeyRecognizer,
+    PasswordRecognizer,
 ]
 
 # NER-basierte Entity-Typen (SpacyRecognizer). Diese unterliegen
@@ -34,6 +41,24 @@ _NER_ENTITY_TYPES = {"PERSON", "LOCATION", "ORGANIZATION", "NRP"}
 # Mindestlänge für NER-basierte Findings (Zeichen).
 # Einzelwörter wie "Danke", "Ah", "Dir", "SELECT" sind fast nie echte PII.
 _NER_MIN_LENGTH = 5
+
+# Technische Fachbegriffe die wie Personennamen aussehen.
+# Werden case-insensitive gegen NER-Findings geprüft.
+_TECH_TERMS = {
+    "adam optimizer", "adam optimiser",
+    "max pooling", "max pooling layer", "max pool",
+    "xavier initialization", "xavier init",
+    "gaussian mixture", "gaussian mixture model",
+    "monte carlo", "monte carlo simulation",
+    "naive bayes", "naive bayes classifier",
+    "random forest", "random forest classifier",
+    "markov chain", "markov chain monte carlo",
+    "fischer information", "fisher information",
+    "pascal case", "camel case",
+    "max iterations", "max iter",
+    "max retries", "max retry",
+    "adam smith",  # Oekonom, nicht Person im Prompt-Kontext
+}
 
 # Mindestanzahl Wörter für PERSON- und LOCATION-Entities.
 # Echte Personennamen bestehen aus Vor- + Nachname.
@@ -208,6 +233,13 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
             if short_words:
                 log.debug("NER-Finding verworfen (Kurzwort %r): %s %r",
                           short_words, result.entity_type, stripped)
+                continue
+            # Technische Fachbegriffe ausschließen
+            if stripped.lower() in _TECH_TERMS:
+                log.debug(
+                    "NER-Finding verworfen (Technik-Term): %r",
+                    stripped,
+                )
                 continue
             # Wörter mit BinnenMajuskeln (z.B. "bleibDas") sind
             # Tippfehler/zusammengeklebte Wörter, keine Eigennamen
