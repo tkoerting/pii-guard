@@ -485,6 +485,31 @@ def list_overrides_cmd() -> None:
         click.echo()
 
 
+@main.group()
+def proxy() -> None:
+    """PII Guard Proxy verwalten (bidirektionales Mapping)."""
+    pass
+
+
+@proxy.command(name="start")
+@click.option("--port", default=7438, help="Port (Default: 7438)")
+def proxy_start(port: int) -> None:
+    """Startet den PII Guard Proxy.
+
+    Danach: ANTHROPIC_BASE_URL=http://localhost:7438 claude
+    """
+    click.echo(f"PII Guard Proxy startet auf Port {port}...")
+    click.echo("")
+    click.echo("Nutze Claude Code mit:")
+    click.echo(
+        f"  ANTHROPIC_BASE_URL=http://localhost:{port} claude"
+    )
+    click.echo("")
+
+    from pii_guard.proxy import run_proxy
+    run_proxy(port=port)
+
+
 def _find_compose_dir() -> str | None:
     """Sucht docker-compose.yml im aktuellen oder übergeordneten Verzeichnis."""
     current = Path.cwd()
