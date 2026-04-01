@@ -379,6 +379,88 @@ def audit_test(export_path: str | None) -> None:
         click.echo(f"\nTestprotokoll exportiert nach: {export_path}")
 
 
+@main.command()
+@click.argument("term")
+@click.option("--reason", "-r", required=True, help="Begründung für die Freigabe")
+@click.option("--who", "-w", help="Wer gibt frei (Default: aktueller User)")
+@click.option("--type", "entity_type", help="PII-Typ (z.B. PERSON, ORGANIZATION)")
+def allow(term: str, reason: str, who: str | None, entity_type: str | None) -> None:
+    """Gibt einen Begriff begründet frei (Override).
+
+    Beispiel: pii-guard allow "Max Müller" --reason "Fiktiver Testname in Doku"
+    """
+    from pii_guard.overrides import add_override
+    from pii_guard.audit import log_event
+
+    config = load_config()
+
+    try:
+        entry = add_override(term, reason, config, who=who, entity_type=entity_type)
+    except ValueError as e:
+        click.secho(str(e), fg="yellow")
+        return
+
+    # Ins Audit-Log schreiben
+    log_event("OVERRIDE_ADDED", config, details={
+        "term": term,
+        "reason": reason,
+        "added_by": entry["added_by"],
+        "entity_type": entity_type or "",
+    })
+
+    click.secho(f"Freigegeben: '{term}'", fg="green")
+    click.echo(f"  Begründung: {reason}")
+    click.echo(f"  Von: {entry['added_by']}")
+    click.echo(f"  Zeitpunkt: {entry['timestamp']}")
+
+
+@main.command()
+@click.argument("term")
+def revoke(term: str) -> None:
+    """Widerruft eine Freigabe (Override).
+
+    Beispiel: pii-guard revoke "Max Müller"
+    """
+    from pii_guard.overrides import remove_override
+    from pii_guard.audit import log_event
+
+    config = load_config()
+    removed = remove_override(term, config)
+
+    if removed:
+        log_event("OVERRIDE_REMOVED", config, details={
+            "term": term,
+            "removed_entry": removed,
+        })
+        click.secho(f"Freigabe widerrufen: '{term}'", fg="yellow")
+        click.echo(f"  War freigegeben von: {removed.get('added_by')}")
+        click.echo(f"  Begründung war: {removed.get('reason')}")
+    else:
+        click.echo(f"Keine Freigabe für '{term}' gefunden.")
+
+
+@main.command(name="overrides")
+def list_overrides_cmd() -> None:
+    """Zeigt alle aktiven Freigaben (Overrides)."""
+    from pii_guard.overrides import list_overrides
+
+    config = load_config()
+    overrides = list_overrides(config)
+
+    if not overrides:
+        click.echo("Keine aktiven Freigaben.")
+        return
+
+    click.echo(f"{len(overrides)} aktive Freigabe(n):\n")
+    for entry in overrides:
+        click.echo(f"  Begriff:     {entry.get('term')}")
+        click.echo(f"  Begründung:  {entry.get('reason')}")
+        click.echo(f"  Freigabe:    {entry.get('added_by')} am {entry.get('timestamp', '?')[:10]}")
+        if entry.get("entity_type"):
+            click.echo(f"  PII-Typ:     {entry.get('entity_type')}")
+        click.echo()
+
+
 def _find_compose_dir() -> str | None:
     """Sucht docker-compose.yml im aktuellen oder übergeordneten Verzeichnis."""
     current = Path.cwd()

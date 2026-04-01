@@ -10,6 +10,7 @@ venv/
 # PII Guard Runtime (lokal, nie committen)
 .pii-guard/session-map.json
 .pii-guard/audit.log
+.pii-guard/overrides.json
 
 # IDE
 .idea/

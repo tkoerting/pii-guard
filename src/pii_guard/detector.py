@@ -161,6 +161,12 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
     allow_set = set(allow_list)
     allow_lower = {a.lower() for a in allow_list}
 
+    # Dynamische Overrides laden (begründete Freigaben)
+    from pii_guard.overrides import get_override_terms
+    override_terms = get_override_terms(config)
+    allow_set.update(override_terms)
+    allow_lower.update(t.lower() for t in override_terms)
+
     results = engine.analyze(
         text=text,
         language="de",
@@ -171,7 +177,7 @@ def detect_pii(text: str, config: dict) -> list[Finding]:
     for result in results:
         original_text = text[result.start:result.end]
 
-        # Allow-List prüfen
+        # Allow-List + Overrides prüfen
         if original_text in allow_set or original_text.lower() in allow_lower:
             continue
 
