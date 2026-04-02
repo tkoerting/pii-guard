@@ -17,8 +17,10 @@ Architektur:
 from __future__ import annotations
 
 import gzip as _gzip
+import http.client
 import json
 import logging
+import ssl
 import threading
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -65,8 +67,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(length) if length else b""
             data = json.loads(body) if body else {}
 
-            # Streaming deaktivieren (Proxy mappt die komplette Antwort)
-            data["stream"] = False
+            # Merken ob Client streaming angefragt hat
+            client_wants_stream = data.get("stream", False)
+
+            # Streaming im Upstream-Request IMMER aktivieren.
+            # Damit greift das 20MB-Limit der API nicht (Issue #8).
+            data["stream"] = True
 
             # PII in Messages maskieren
             session_id = str(uuid4())
@@ -83,57 +89,62 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     headers[key] = value
             headers["Content-Length"] = str(len(upstream_body))
             headers["Host"] = urlparse(_ANTHROPIC_API).netloc
-            # FIX: kein gzip anfordern – verhindert Dekomprimierungsfehler
             headers["Accept-Encoding"] = "identity"
 
-            req = urllib.request.Request(
-                upstream_url,
-                data=upstream_body,
-                headers=headers,
-                method="POST",
+            # http.client statt urllib: unterstuetzt echtes Streaming (chunked transfer)
+            parsed = urlparse(_ANTHROPIC_API)
+            ctx = ssl.create_default_context()
+            conn = http.client.HTTPSConnection(
+                parsed.netloc, timeout=300, context=ctx,
             )
+            conn.request(
+                "POST",
+                self.path,
+                body=upstream_body,
+                headers=headers,
+            )
+            resp = conn.getresponse()
+            content_type = resp.headers.get("Content-Type", "")
 
-            with urllib.request.urlopen(req, timeout=300) as resp:
+            if resp.status != 200:
+                error_body = resp.read()
+                self.send_response(resp.status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(error_body)))
+                self.end_headers()
+                self.wfile.write(error_body)
+                conn.close()
+                return
+
+            if "text/event-stream" in content_type:
+                # SSE-Stream: Chunks puffern, zusammenbauen, reverse-mappen
+                response_data = self._buffer_sse_stream(resp)
+            else:
+                # Fallback: Non-Stream-Response
                 response_body = resp.read()
-
-                # FIX: gzip-komprimierte Antwort dekomprimieren falls nötig
                 if resp.headers.get("Content-Encoding") == "gzip":
                     response_body = _gzip.decompress(response_body)
-
                 response_data = json.loads(response_body)
 
-                # PII in der Antwort zurückmappen
-                response_data = self._unmap_response(
-                    response_data, mapper,
-                )
+            conn.close()
 
-                # Antwort an Claude Code senden
-                result_body = json.dumps(
-                    response_data, ensure_ascii=False,
-                ).encode("utf-8")
-
-                self.send_response(resp.status)
-                for key, value in resp.headers.items():
-                    if key.lower() not in _HOP_BY_HOP:
-                        self.send_header(key, value)
-                self.send_header(
-                    "Content-Length", str(len(result_body)),
-                )
-                self.end_headers()
-                self.wfile.write(result_body)
-
-        except urllib.error.HTTPError as e:
-            # API-Fehler durchreichen
-            error_body = e.read()
-            self.send_response(e.code)
-            self.send_header(
-                "Content-Type", "application/json",
+            # PII in der Antwort zurueckmappen
+            response_data = self._unmap_response(
+                response_data, mapper,
             )
+
+            # Antwort an Claude Code senden (immer als Non-Stream JSON)
+            result_body = json.dumps(
+                response_data, ensure_ascii=False,
+            ).encode("utf-8")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
             self.send_header(
-                "Content-Length", str(len(error_body)),
+                "Content-Length", str(len(result_body)),
             )
             self.end_headers()
-            self.wfile.write(error_body)
+            self.wfile.write(result_body)
 
         except Exception as e:
             log.error("Proxy-Fehler: %s", e, exc_info=True)
@@ -145,6 +156,115 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(error)))
             self.end_headers()
             self.wfile.write(error)
+
+    def _buffer_sse_stream(self, resp) -> dict:
+        """Puffert einen SSE-Stream und baut einen Non-Stream-Response zusammen.
+
+        Liest alle SSE-Events, sammelt Text-Deltas, und rekonstruiert
+        eine vollstaendige Messages-API-Antwort (Non-Stream-Format).
+        """
+        message = {}
+        content_blocks: dict[int, dict] = {}
+        stop_reason = None
+        stop_sequence = None
+        usage = {}
+
+        for line in resp:
+            if isinstance(line, bytes):
+                line = line.decode("utf-8", errors="replace")
+            line = line.strip()
+
+            if not line or line.startswith(":"):
+                continue
+            if line.startswith("event:"):
+                continue
+
+            if not line.startswith("data:"):
+                continue
+
+            data_str = line[5:].strip()
+            if not data_str:
+                continue
+
+            try:
+                event = json.loads(data_str)
+            except json.JSONDecodeError:
+                continue
+
+            event_type = event.get("type", "")
+
+            if event_type == "message_start":
+                message = event.get("message", {})
+                usage = message.get("usage", {})
+
+            elif event_type == "content_block_start":
+                idx = event.get("index", 0)
+                block = event.get("content_block", {})
+                content_blocks[idx] = block
+
+            elif event_type == "content_block_delta":
+                idx = event.get("index", 0)
+                delta = event.get("delta", {})
+                delta_type = delta.get("type", "")
+
+                if idx not in content_blocks:
+                    content_blocks[idx] = {"type": "text", "text": ""}
+
+                if delta_type == "text_delta":
+                    content_blocks[idx].setdefault("text", "")
+                    content_blocks[idx]["text"] += delta.get("text", "")
+                elif delta_type == "input_json_delta":
+                    content_blocks[idx].setdefault("input", "")
+                    content_blocks[idx]["input"] += delta.get(
+                        "partial_json", "",
+                    )
+
+            elif event_type == "content_block_stop":
+                idx = event.get("index", 0)
+                block = content_blocks.get(idx, {})
+                # Tool-Use: input von String zu JSON parsen
+                if block.get("type") == "tool_use" and isinstance(
+                    block.get("input"), str,
+                ):
+                    try:
+                        block["input"] = json.loads(block["input"])
+                    except json.JSONDecodeError:
+                        pass
+
+            elif event_type == "message_delta":
+                delta = event.get("delta", {})
+                stop_reason = delta.get("stop_reason", stop_reason)
+                stop_sequence = delta.get("stop_sequence", stop_sequence)
+                delta_usage = event.get("usage", {})
+                usage.update(delta_usage)
+
+            elif event_type == "message_stop":
+                break
+
+        # Non-Stream-Response zusammenbauen
+        content = [
+            content_blocks[i]
+            for i in sorted(content_blocks.keys())
+        ]
+
+        result = {
+            "id": message.get("id", ""),
+            "type": "message",
+            "role": "assistant",
+            "content": content,
+            "model": message.get("model", ""),
+            "stop_reason": stop_reason,
+            "stop_sequence": stop_sequence,
+            "usage": usage,
+        }
+
+        log.info(
+            "SSE-Stream gepuffert: %d Content-Blocks, %d Zeichen Text",
+            len(content),
+            sum(len(b.get("text", "")) for b in content),
+        )
+
+        return result
 
     def do_GET(self) -> None:
         if self.path == "/health":
