@@ -110,6 +110,39 @@ def off() -> None:
     _set_hook_enabled(False)
 
 
+def _disabled_flag_path(config: dict) -> Path:
+    """Pfad zur Disable-Flag-Datei, abgeleitet aus der Audit-Config."""
+    audit_path = config.get("audit", {}).get("path", ".pii-guard/audit.log")
+    return Path(audit_path).parent / "disabled"
+
+
+@main.command()
+def pause() -> None:
+    """Unterbricht die PII-Filterung ohne den Hook zu entfernen."""
+    config = load_config()
+    flag = _disabled_flag_path(config)
+    if flag.exists():
+        click.echo("PII Guard ist bereits pausiert.")
+        return
+    flag.parent.mkdir(parents=True, exist_ok=True)
+    flag.touch()
+    click.secho("PII Guard pausiert.", fg="yellow")
+    click.echo(f"  Flag: {flag}")
+    click.echo("  Fortsetzen mit: pii-guard resume")
+
+
+@main.command()
+def resume() -> None:
+    """Setzt die PII-Filterung nach einer Pause fort."""
+    config = load_config()
+    flag = _disabled_flag_path(config)
+    if not flag.exists():
+        click.echo("PII Guard läuft bereits.")
+        return
+    flag.unlink()
+    click.secho("PII Guard aktiv.", fg="green")
+
+
 @main.command()
 @click.option("--check", is_flag=True, help="Exit-Code 1 wenn keine Config gefunden")
 def status(check: bool) -> None:
@@ -725,6 +758,44 @@ Der User moechte den aktuellen PII Guard Status sehen.
    pii-guard overrides
    ```
 3. Fasse die Ergebnisse uebersichtlich zusammen.
+""",
+    "pii-pause.md": """\
+# PII Guard: Filterung pausieren oder fortsetzen
+
+Der User moechte PII Guard voruebergehend deaktivieren oder nach einer Pause
+wieder aktivieren. Der Hook bleibt registriert – nur die Verarbeitung wird
+ausgesetzt.
+
+## Ablauf
+
+1. Pruefe den aktuellen Zustand:
+   ```bash
+   docker exec pii-guard pii-guard status
+   ls ~/mydocker/piiguard/.pii-guard/disabled 2>/dev/null && echo "PAUSIERT" || echo "AKTIV"
+   ```
+
+2. Entscheide anhand des Ergebnisses:
+   - Ist PII Guard **aktiv** und der User will pausieren:
+     ```bash
+     docker exec pii-guard pii-guard pause
+     ```
+   - Ist PII Guard **pausiert** und der User will fortsetzen:
+     ```bash
+     docker exec pii-guard pii-guard resume
+     ```
+   - Ist der Container nicht gestartet, weise den User darauf hin:
+     ```bash
+     docker start pii-guard
+     ```
+
+3. Bestaetige den neuen Zustand dem User.
+
+## Wichtig
+
+- Pausieren entfernt den Hook NICHT aus den Claude Code Settings.
+- Waehrend der Pause werden Prompts ungefiltert weitergeleitet.
+- Der Zustand ist persistent – er bleibt auch nach einem Neustart der
+  Claude Code Session erhalten, bis explizit resume aufgerufen wird.
 """,
 }
 

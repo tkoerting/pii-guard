@@ -73,6 +73,7 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
             "/test": self._handle_test_submit,
             "/overrides/add": self._handle_override_add,
             "/overrides/remove": self._handle_override_remove,
+            "/toggle": self._handle_toggle,
         }
         handler = routes.get(self.path)
         if handler:
@@ -215,8 +216,13 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
 
     # ── Web-UI Endpoints ──────────────────────────────────────────────────────
 
+    def _disabled_flag_path(self) -> Path:
+        """Pfad zur Disable-Flag-Datei (im gemounteten .pii-guard-Verzeichnis)."""
+        audit_path = Path(self.config.get("audit", {}).get("path", ".pii-guard/audit.log"))
+        return audit_path.parent / "disabled"
+
     def _handle_dashboard(self) -> None:
-        from pii_guard.audit import _read_log_entries
+        from pii_guard.audit import _read_log_entries, utc_to_local
 
         config = self.config
         audit_path = Path(config.get("audit", {}).get("path", ".pii-guard/audit.log"))
@@ -226,14 +232,33 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
         blocked = sum(1 for e in entries if e.get("action_taken") == "BLOCK")
         masked = sum(1 for e in entries if e.get("action_taken") == "MASK")
         warned = sum(1 for e in entries if e.get("action_taken") == "WARN")
-        last_ts = entries[-1].get("timestamp", "")[:19].replace("T", " ") if entries else "–"
+        last_ts = utc_to_local(entries[-1].get("timestamp", "")) if entries else "–"
 
         rules = config.get("rules", [])
         allow_list = config.get("allow_list", [])
 
+        disabled = self._disabled_flag_path().exists()
+        if disabled:
+            status_badge = '<span class="badge badge-block">pausiert</span>'
+            toggle_label = "Aktivieren"
+            toggle_style = "background:#166534"
+        else:
+            status_badge = '<span class="badge badge-allow">aktiv</span>'
+            toggle_label = "Pausieren"
+            toggle_style = "background:#92400e"
+
         content = f"""
 <h1>Status</h1>
 <div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <span style="font-weight:600;font-size:1rem">PII Guard</span>
+      {status_badge}
+    </div>
+    <form method="post" action="/toggle">
+      <button type="submit" style="{toggle_style}">{toggle_label}</button>
+    </form>
+  </div>
   <div class="stats">
     <div class="stat"><div class="stat-value">{total}</div><div class="stat-label">Audit-Eintraege</div></div>
     <div class="stat"><div class="stat-value">{blocked}</div><div class="stat-label">Blockiert</div></div>
@@ -249,6 +274,16 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
   </table>
 </div>"""
         self._send_html(self._page("Status", content))
+
+    def _handle_toggle(self) -> None:
+        """Schaltet PII Guard aktiv/pausiert um (erstellt/löscht Disable-Flag)."""
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        flag = self._disabled_flag_path()
+        if flag.exists():
+            flag.unlink()
+        else:
+            flag.touch()
+        self._redirect("/")
 
     def _handle_test_form(self, result_html: str = "") -> None:
         content = f"""
