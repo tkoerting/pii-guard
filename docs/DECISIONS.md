@@ -50,8 +50,8 @@ PII Guard wurde von Thomas Körting konzipiert, architektonisch entworfen und du
 - **Datum**: 2026-03-31
 - **Entscheidung**: Docker-Daemon als Alternative zur lokalen pip-Installation
 - **Begründung**: spaCy-Modelle sind ~1 GB groß und die Installation auf Windows-Rechnern ist fehleranfällig. Docker eliminiert Installationsprobleme und ermöglicht einfache Updates.
-- **Auslöser**: Feedback von Markus (Collana-Gruppe): "Damit wir nicht abhängig von der lokalen Installation sind, würde ich dafür plädieren das ganze Konstrukt in Docker laufen zu lassen."
-- **Entscheider**: Thomas Körting + Markus
+- **Auslöser**: Feedback von Markus Thomanek (Collana-Gruppe): "Damit wir nicht abhängig von der lokalen Installation sind, würde ich dafür plädieren das ganze Konstrukt in Docker laufen zu lassen."
+- **Entscheider**: Thomas Körting + Markus Thomanek
 
 ### E6: ISO 27001 Audit-Funktion
 - **Datum**: 2026-03-31

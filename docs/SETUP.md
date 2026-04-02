@@ -4,21 +4,28 @@ PII Guard filtert personenbezogene Daten aus Prompts bevor sie an die LLM-API ge
 
 ## Voraussetzungen
 
-- Docker Desktop (Windows/Mac)
+- WSL2 Aktivierung (Windows)
+- Docker 
 - Python 3.11+
 - Azure CLI (`az`) mit Zugriff auf die b-imtec Subscription
 
-## 1. Docker-Image holen
+## 1. Vorbereitungen
+- Installiere Docker auf Deinem System
+Kopiere das Verzeichnis **piiguard** und den Inhalt an einen von Dir gewählten Ort auf Deiner Festplatte z. B. C:\ oder ~/
 
-```bash
+## 2. Docker-Image holen
+
+```bash / Terminal
+
+
 az login
 az acr login --name piiguard
 docker pull piiguard.azurecr.io/pii-guard:latest
 ```
 
-## 2. Container starten
+## 3. Container starten
 
-```bash
+```bash / Terminal
 docker run -d -p 7437:7437 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
 ```
 
