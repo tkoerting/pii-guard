@@ -50,8 +50,8 @@ PII Guard wurde von Thomas Körting konzipiert, architektonisch entworfen und du
 - **Datum**: 2026-03-31
 - **Entscheidung**: Docker-Daemon als Alternative zur lokalen pip-Installation
 - **Begründung**: spaCy-Modelle sind ~1 GB groß und die Installation auf Windows-Rechnern ist fehleranfällig. Docker eliminiert Installationsprobleme und ermöglicht einfache Updates.
-- **Auslöser**: Feedback von Markus (Collana-Gruppe): "Damit wir nicht abhängig von der lokalen Installation sind, würde ich dafür plädieren das ganze Konstrukt in Docker laufen zu lassen."
-- **Entscheider**: Thomas Körting + Markus
+- **Auslöser**: Feedback von Markus Thomanek (Collana-Gruppe): "Damit wir nicht abhängig von der lokalen Installation sind, würde ich dafür plädieren das ganze Konstrukt in Docker laufen zu lassen."
+- **Entscheider**: Thomas Körting + Markus Thomanek
 
 ### E6: ISO 27001 Audit-Funktion
 - **Datum**: 2026-03-31
@@ -93,6 +93,20 @@ PII Guard wurde von Thomas Körting konzipiert, architektonisch entworfen und du
 - **Begründung**: Architekten-Review hat das als Sicherheits-Antipattern identifiziert. Stattdessen dokumentierter Onboarding-Guide.
 - **Entscheider**: Thomas Körting (nach Architekten-Review)
 
+### E12: Transparenter API-Proxy für bidirektionales PII-Mapping
+- **Datum**: 2026-04-01
+- **Entscheidung**: Zusätzlicher Proxy-Modus (Port 7438) der zwischen Claude Code und der Anthropic API sitzt
+- **Begründung**: Claude Code Hooks können Prompts nur blockieren, nicht modifizieren. Für echtes bidirektionales Masking (PII ersetzen → API-Call → Antwort zurückmappen) braucht es einen HTTP-Proxy. Wird über `ANTHROPIC_BASE_URL=http://localhost:7438` aktiviert.
+- **Auslöser**: Architektur-Analyse der Hook-Limitationen
+- **Entscheider**: Thomas Körting
+
+### E13: Python lokal optional im Docker-Modus
+- **Datum**: 2026-04-02
+- **Entscheidung**: Im Docker-Modus ist Python auf dem Host nicht mehr zwingend erforderlich
+- **Begründung**: `hook.py` macht im Docker-Modus nur JSON-Parsing + HTTP POST – das kann ein Bash-Script mit `curl` + `jq`. Presidio, spaCy und Faker laufen komplett im Container. Vereinfacht Onboarding massiv, besonders auf Windows/WSL2.
+- **Auslöser**: Analyse von Markus Thomanek (Branch `compose`)
+- **Entscheider**: Thomas Körting + Markus Thomanek
+
 ---
 
 ## Reviews
@@ -106,3 +120,6 @@ PII Guard wurde von Thomas Körting konzipiert, architektonisch entworfen und du
 | 2026-03-31 | Code Review 1 | Phase 1 | 13 Findings, 10 gefixt, 2 auf spätere Phasen verschoben |
 | 2026-03-31 | Code Review 2 | Phase 2 | 12 Findings, alle gefixt |
 | 2026-04-01 | Code Review 3 | Phase 3 | 9 Findings, alle gefixt |
+| 2026-04-01 | Field-Test Session 1 | Windows + VS Code Extension | Stephan: Exit-Code, API Keys, Passwords, False Positives – 4 Issues erstellt |
+| 2026-04-01 | Field-Test Session 2 | Proxy-Modus + Regression | Stephan: Gzip-Bug gefunden + gefixt, alle Fixes verifiziert, keine Regression |
+| 2026-04-02 | Architektur-Analyse | Python vs. Docker | Markus Thomanek: Python lokal optional, Bash-Hook als Alternative – 4 Issues erstellt |
