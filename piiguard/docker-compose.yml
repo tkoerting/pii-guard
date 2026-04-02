@@ -1,6 +1,6 @@
 services:
   pii-guard:
-    image: piiguard.azurecr.io/pii-guard:latest
+    image: pii-guard:local
     container_name: pii-guard
     ports:
       - "127.0.0.1:4141:4141"
