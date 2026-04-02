@@ -51,7 +51,7 @@ Deployment-Artefakte ausgelagert aus dem Repo-Root:
 | Datei | Inhalt |
 |---|---|
 | `piiguard/docker-compose.yml` | Produktions-Compose mit `read_only`, `tmpfs`, `no-new-privileges` |
-| `piiguard/docker_install.sh` | Docker-Installationsskript für Ubuntu |
+| `piiguard/docker_install.sh` | Docker-Installationsskript |
 | `piiguard/pii-guard-hook.sh` | Shell-Hook für Claude Code (Docker-Modus, kein Python nötig) |
 | `piiguard/azure_login.sh` | Azure Container Registry Login |
 
