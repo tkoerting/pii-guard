@@ -18,9 +18,9 @@ COPY src/ /app/src/
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 7437
+EXPOSE 4141
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7437/health')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:4141/health')"
 
 CMD ["python", "-m", "pii_guard.server"]
