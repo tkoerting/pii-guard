@@ -65,7 +65,7 @@ _DEFAULT_CONFIG = {
     "docker": {
         "enabled": False,
         "host": "127.0.0.1",
-        "port": 7437,
+        "port": 4141,
     },
     "on_error": "allow",
 }
@@ -113,7 +113,7 @@ def _validate_config(config: dict) -> None:
 
     # Docker
     docker = config.get("docker", {})
-    docker_port = docker.get("port", 7437)
+    docker_port = docker.get("port", 4141)
     if not isinstance(docker_port, int) or docker_port < 1 or docker_port > 65535:
         raise ConfigError(f"docker.port '{docker_port}' ist ungültig (1-65535)")
 

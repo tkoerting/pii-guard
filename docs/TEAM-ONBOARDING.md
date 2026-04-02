@@ -32,10 +32,10 @@ docker pull piiguard.azurecr.io/pii-guard:latest
 ### 2. Container starten
 
 ```bash
-docker run -d -p 7437:7437 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
+docker run -d -p 4141:4141 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
 ```
 
-Prüfen: `curl http://localhost:7437/health`
+Prüfen: `curl http://localhost:4141/health`
 
 ### 3. CLI installieren
 

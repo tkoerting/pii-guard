@@ -51,7 +51,7 @@ def _process_via_docker(prompt: str, config: dict) -> dict:
     """Sendet den Prompt an den Docker-Daemon zur Verarbeitung."""
     docker_config = config.get("docker", {})
     host = docker_config.get("host", "127.0.0.1")
-    port = docker_config.get("port", 7437)
+    port = docker_config.get("port", 4141)
     url = f"http://{host}:{port}/process"
 
     payload = json.dumps({"prompt": prompt}).encode("utf-8")

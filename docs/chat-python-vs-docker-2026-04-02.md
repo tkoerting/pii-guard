@@ -11,7 +11,7 @@
 
 Im Docker-Modus macht `hook.py` lokal nur drei Dinge:
 1. JSON von stdin lesen
-2. HTTP POST an `localhost:7437` senden
+2. HTTP POST an `localhost:4141` senden
 3. Ergebnis zurückgeben
 
 Presidio, spaCy, Faker – alles läuft im Container.
@@ -160,7 +160,7 @@ fi
 RESULT=$(curl -s -X POST \
   -H "Content-Type: application/json" \
   -d "{\"prompt\": $(echo "$PROMPT" | jq -R -s '.')}" \
-  http://127.0.0.1:7437/process)
+  http://127.0.0.1:4141/process)
 
 DECISION=$(echo "$RESULT" | jq -r '.decision // "allow"')
 

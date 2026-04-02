@@ -530,7 +530,7 @@ def docker() -> None:
 
 
 @docker.command()
-@click.option("--port", default=7437, help="Port für den PII Guard Daemon")
+@click.option("--port", default=4141, help="Port für den PII Guard Daemon")
 @click.option("--build", "do_build", is_flag=True, help="Docker Image neu bauen")
 def start(port: int, do_build: bool) -> None:
     """Startet den PII Guard Docker-Daemon."""
@@ -611,7 +611,7 @@ def docker_status() -> None:
     click.echo(f"Container: {result.stdout.strip()}")
 
     config = load_config()
-    port = config.get("docker", {}).get("port", 7437)
+    port = config.get("docker", {}).get("port", 4141)
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as resp:
             data = json.loads(resp.read())

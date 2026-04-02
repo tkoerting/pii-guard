@@ -1,3 +1,9 @@
+#!/bin/bash
+
+#  curl und jq installieren, damit die restlichen Skripte funktionieren
+sudo apt install -y curl jq
+
+# Docker installieren auf Ubuntu
 # Alte Versionen entfernen
 sudo apt remove docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc
 

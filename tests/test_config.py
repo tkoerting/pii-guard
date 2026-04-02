@@ -134,7 +134,7 @@ class TestValidation:
             "engine": {"languages": ["de"], "confidence_threshold": 0.7},
             "rules": [],
             "substitution": {"method": "type_preserving"},
-            "docker": {"enabled": True, "port": 7437, "host": "127.0.0.1"},
+            "docker": {"enabled": True, "port": 4141, "host": "127.0.0.1"},
             "on_error": "block",
         }
         _validate_config(config)  # Kein Fehler

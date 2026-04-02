@@ -16,7 +16,7 @@ Antwort ← Reverse-Mapping (lokal) ← API-Response
 
 ### Docker-Modus
 ```
-Prompt → hook.py → HTTP POST localhost:7437 → Container (Presidio+spaCy) → Antwort
+Prompt → hook.py → HTTP POST localhost:4141 → Container (Presidio+spaCy) → Antwort
 ```
 
 Alles läuft lokal. Keine Cloud, kein Proxy, kein zusätzlicher Datenverarbeiter.
@@ -60,7 +60,7 @@ pii-guard/
 - Implementiert den `user_prompt_submit` Hook für Claude Code
 - Empfängt den Prompt als JSON auf stdin
 - Prüft Docker-Modus (Env `PII_GUARD_DOCKER` > Config `docker.enabled`)
-- Docker: HTTP POST an localhost:7437 (3s Timeout, on_error Fallback)
+- Docker: HTTP POST an localhost:4141 (3s Timeout, on_error Fallback)
 - Lokal: Lazy Imports (Presidio/spaCy erst bei Bedarf)
 - Session-ID (UUID) wird durch die Pipeline gereicht
 - PROMPT_ALLOWED Event bei 0 Findings

@@ -33,7 +33,7 @@ az acr login --name piiguard
 docker pull piiguard.azurecr.io/pii-guard:latest
 
 # 2. Container starten
-docker run -d -p 7437:7437 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
+docker run -d -p 4141:4141 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
 
 # 3. CLI installieren
 pip install git+https://github.com/b-imtec-gmbh/pii-guard.git
@@ -49,7 +49,7 @@ Dann in `.pii-guard.yaml` den Docker-Modus aktivieren:
 docker:
   enabled: true
   host: 127.0.0.1
-  port: 7437
+  port: 4141
 ```
 
 ### Variante B: Lokale Installation (ohne Docker)
@@ -150,7 +150,7 @@ audit:
 # Docker (optional)
 # docker:
 #   enabled: true
-#   port: 7437
+#   port: 4141
 ```
 
 ---
@@ -282,7 +282,7 @@ Prompt → hook.py → Presidio (PII-Erkennung) → Block/Warn/Allow → Audit-L
 ### Docker-Modus
 
 ```
-Prompt → hook.py → HTTP POST localhost:7437 → Container (Presidio+spaCy) → Ergebnis
+Prompt → hook.py → HTTP POST localhost:4141 → Container (Presidio+spaCy) → Ergebnis
 ```
 
 ### Module
@@ -384,7 +384,7 @@ Image:     piiguard.azurecr.io/pii-guard:latest
 ```bash
 docker pull piiguard.azurecr.io/pii-guard:latest
 docker stop pii-guard && docker rm pii-guard
-docker run -d -p 7437:7437 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
+docker run -d -p 4141:4141 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
 ```
 
 ### Neues Image bauen und pushen (nur mit AcrPush-Berechtigung)

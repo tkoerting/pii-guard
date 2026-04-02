@@ -96,7 +96,7 @@ PII Guard ist ein lokaler Datenschutz-Filter für KI-Coding-Tools. Er erkennt pe
 | Schnittstelle | Technologie | Beschreibung |
 |--------------|-------------|-------------|
 | Claude Code Hook | stdin/stdout JSON | `user_prompt_submit` Event |
-| Docker-API | HTTP POST localhost:7437 | Alternativ zum lokalen Hook |
+| Docker-API | HTTP POST localhost:4141 | Alternativ zum lokalen Hook |
 | Presidio | Python API | NER-basierte PII-Erkennung |
 | spaCy | Python API | NLP-Modelle (de_core_news_lg, en_core_web_lg) |
 | Faker | Python API | Typerhaltende Fake-Daten-Generierung |
@@ -284,7 +284,7 @@ hook.py                                    Ergebnis
 │  │     (nur stdlib)    │  │  ├── Presidio │  │
 │  │                     │  │  ├── spaCy    │  │
 │  │   HTTP POST ──────────>│  ├── Faker    │  │
-│  │   localhost:7437    │  │  └── server.py│  │
+│  │   localhost:4141    │  │  └── server.py│  │
 │  └─────────────────────┘  └───────┬───────┘  │
 │                                   │          │
 │  ┌────────────────────────────────┘          │
@@ -301,7 +301,7 @@ hook.py                                    Ergebnis
 |------------|------|
 | Base Image | python:3.11-slim |
 | Größe | ~2 GB (inkl. spaCy-Modelle) |
-| Port | 127.0.0.1:7437 (nur lokal) |
+| Port | 127.0.0.1:4141 (nur lokal) |
 | Restart | unless-stopped |
 | Security | read_only, no-new-privileges, tmpfs /tmp |
 | Healthcheck | GET /health (10s Intervall, 30s Start-Period) |
