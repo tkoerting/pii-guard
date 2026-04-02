@@ -24,58 +24,28 @@ Harte Secrets (Passwörter, IBANs, API-Keys) werden immer blockiert. Personennam
 
 ## Installation
 
-### Variante A: Docker + pip (empfohlen für Teams)
+Vollständige Schritt-für-Schritt-Anleitung: [docs/SETUP.md](docs/SETUP.md)
+
+### Kurzversion
 
 ```bash
-# 1. Docker-Image holen (Azure Container Registry)
-az login
-az acr login --name piiguard
-docker pull piiguard.azurecr.io/pii-guard:latest
+# 1. Repository klonen oder piiguard/-Verzeichnis kopieren
+cd ~/mydocker/piiguard
 
-# 2. Container starten
-docker run -d -p 4141:4141 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
+# 2. Docker-Image lokal bauen
+docker build -t pii-guard:local /pfad/zu/pii-guard
 
-# 3. CLI installieren
-pip install git+https://github.com/b-imtec-gmbh/pii-guard.git
+# 3. Container starten
+docker compose up -d
 
-# 4. Projekt einrichten (Config + Skills + Hook)
-cd /dein/projekt
-pii-guard init
+# 4. Prüfen
+curl http://localhost:4141/health
+
+# 5. Hook-Script ausführbar machen
+chmod +x pii-guard-hook.sh
 ```
 
-Dann in `.pii-guard.yaml` den Docker-Modus aktivieren:
-
-```yaml
-docker:
-  enabled: true
-  host: 127.0.0.1
-  port: 4141
-```
-
-### Variante B: Lokale Installation (ohne Docker)
-
-```bash
-# 1. Installieren
-pip install git+https://github.com/b-imtec-gmbh/pii-guard.git
-
-# 2. spaCy-Modell herunterladen (einmalig, ~500 MB)
-python -m spacy download de_core_news_lg
-
-# 3. Projekt einrichten
-cd /dein/projekt
-pii-guard init
-```
-
-### Was `pii-guard init` macht
-
-- `.pii-guard.yaml` anlegen (Regeln, Schwellenwerte, Allow-List)
-- `.pii-guard/` Verzeichnis erstellen
-- Claude Code Hook registrieren (Hinweis)
-- Claude Code Skills installieren (`/allow`, `/revoke`, `/pii-toggle`, `/pii-status`)
-
-### Claude Code Hook registrieren
-
-In `~/.claude/settings.json` (Mac/Linux) bzw. `%USERPROFILE%\.claude\settings.json` (Windows):
+Hook in `~/.claude/settings.json` registrieren:
 
 ```json
 {
@@ -86,8 +56,8 @@ In `~/.claude/settings.json` (Mac/Linux) bzw. `%USERPROFILE%\.claude\settings.js
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -m pii_guard.hook",
-            "timeout": 15000
+            "command": "/pfad/zu/piiguard/pii-guard-hook.sh",
+            "timeout": 5000
           }
         ]
       }
@@ -96,13 +66,33 @@ In `~/.claude/settings.json` (Mac/Linux) bzw. `%USERPROFILE%\.claude\settings.js
 }
 ```
 
-Oder einfach: `pii-guard on`
-
 ### Systemanforderungen
 
-- Python 3.11+
-- Docker Desktop (Variante A) oder ~500 MB für spaCy-Modell (Variante B)
-- Windows, macOS oder Linux
+- Docker
+- `curl` und `jq` (für das Hook-Script)
+- Windows (WSL2), macOS oder Linux
+- Kein lokales Python erforderlich
+
+### Lokale Installation (ohne Docker)
+
+Für Entwicklung oder wenn Docker nicht verfügbar ist:
+
+```bash
+pip install -e .
+python -m spacy download de_core_news_lg
+cd /dein/projekt
+pii-guard init
+```
+
+Hook-Eintrag für die lokale Variante:
+
+```json
+{
+  "type": "command",
+  "command": "python3 -m pii_guard.hook",
+  "timeout": 15000
+}
+```
 
 ---
 
@@ -114,7 +104,7 @@ Die Regeln liegen im Projekt-Repo (`.pii-guard.yaml`) – zentral versioniert, l
 version: 1
 
 engine:
-  languages: ["de"]
+  languages: ["de", "en"]
   confidence_threshold: 0.7
   spacy_model: de_core_news_lg
 
@@ -147,10 +137,10 @@ audit:
   max_size_mb: 10
   keep_days: 365
 
-# Docker (optional)
-# docker:
-#   enabled: true
-#   port: 4141
+docker:
+  enabled: true
+  host: 127.0.0.1
+  port: 4141
 ```
 
 ---
@@ -169,32 +159,104 @@ Hinweis: Claude Code unterstützt keine Prompt-Modifikation durch Hooks. Daher b
 
 ## CLI-Befehle
 
+Alle Befehle werden per `docker exec` im Container ausgeführt:
+
+```bash
+docker exec pii-guard pii-guard <befehl>
+```
+
 | Befehl | Beschreibung |
 |--------|-------------|
-| `pii-guard init` | Projekt initialisieren (Config + Skills + Hook) |
-| `pii-guard init --with-gitleaks` | Zusätzlich Gitleaks Pre-Commit Hook |
-| `pii-guard on` | PII Guard Hook aktivieren |
-| `pii-guard off` | PII Guard Hook deaktivieren |
-| `pii-guard test "Text"` | PII-Erkennung testen (Trockenlauf) |
-| `pii-guard status` | Config, Regeln und Audit-Log anzeigen |
-| `pii-guard allow "Begriff" --reason "..."` | Begriff begründet freigeben |
-| `pii-guard revoke "Begriff"` | Freigabe widerrufen |
-| `pii-guard overrides` | Aktive Freigaben anzeigen |
-| `pii-guard audit-export` | Audit-Log als CSV exportieren |
-| `pii-guard audit-report` | Compliance-Report generieren |
-| `pii-guard audit-test` | Wirksamkeitstest mit PASS/FAIL |
-| `pii-guard docker start` | Docker-Daemon starten |
-| `pii-guard docker stop` | Docker-Daemon stoppen |
-| `pii-guard docker status` | Docker-Status prüfen |
+| `init` | Projekt initialisieren (Config + Skills + Hook) |
+| `init --with-gitleaks` | Zusätzlich Gitleaks Pre-Commit Hook |
+| `on` | PII Guard Hook in Claude Code settings.json aktivieren |
+| `off` | PII Guard Hook aus Claude Code settings.json entfernen |
+| `pause` | Filterung pausieren (Hook bleibt registriert) |
+| `resume` | Filterung nach Pause fortsetzen |
+| `test "Text"` | PII-Erkennung testen (Trockenlauf) |
+| `status` | Config, Regeln und Audit-Log anzeigen |
+| `allow "Begriff" --reason "..."` | Begriff begründet freigeben |
+| `revoke "Begriff"` | Freigabe widerrufen |
+| `overrides` | Aktive Freigaben anzeigen |
+| `audit-export` | Audit-Log als CSV exportieren |
+| `audit-report` | Compliance-Report generieren |
+| `audit-test` | Wirksamkeitstest mit PASS/FAIL |
+| `docker start` | Docker-Daemon starten (lokale Installation) |
+| `docker stop` | Docker-Daemon stoppen (lokale Installation) |
+| `docker status` | Docker-Status prüfen (lokale Installation) |
+
+---
+
+## Filterung pausieren und fortsetzen
+
+PII Guard kann vorübergehend pausiert werden, ohne den Hook zu entfernen. Während der Pause werden Prompts ungefiltert weitergeleitet.
+
+Vier gleichwertige Wege:
+
+```bash
+# CLI (via Docker)
+docker exec pii-guard pii-guard pause
+docker exec pii-guard pii-guard resume
+
+# Direkt (Terminal)
+touch ~/mydocker/piiguard/.pii-guard/disabled
+rm ~/mydocker/piiguard/.pii-guard/disabled
+```
+
+Oder über die Web-UI (`http://localhost:4141`) bzw. den Claude Code Skill `/pii-pause`.
+
+Der Zustand ist persistent und wird in der Claude Code Statusleiste angezeigt.
+
+---
+
+## Web-UI
+
+Erreichbar unter `http://localhost:4141`
+
+| Seite | URL | Funktion |
+|-------|-----|---------|
+| Status | `/` | Übersicht, Audit-Statistiken, Pause-Toggle |
+| Testen | `/test` | PII-Erkennung ausprobieren |
+| Audit-Report | `/report` | Compliance-Report mit Datumsfilter |
+| CSV-Export | `/export` | Audit-Log herunterladen |
+| Overrides | `/overrides` | Begriffe freigeben und widerrufen |
+
+Die Status-Seite zeigt den aktuellen Zustand (aktiv/pausiert) und ermöglicht das Umschalten per Knopfdruck.
+
+---
 
 ## Claude Code Skills
 
 | Skill | Beschreibung |
 |-------|-------------|
-| `/pii-toggle` | PII Guard ein-/ausschalten |
+| `/pii-pause` | Filterung pausieren oder fortsetzen |
 | `/pii-status` | Status und aktive Overrides anzeigen |
 | `/allow "Begriff" Begründung` | Begriff begründet freigeben |
 | `/revoke Begriff` | Freigabe widerrufen |
+
+---
+
+## Claude Code Statusleiste
+
+PII Guard zeigt seinen Zustand in der Claude Code Statusleiste:
+
+| Anzeige | Bedeutung |
+|---------|---------|
+| `PII aktiv` | Hook registriert und Container healthy |
+| `PII: pausiert` | Filterung manuell pausiert |
+| `PII: kein Container` | Hook aktiv, Container nicht erreichbar |
+| `PII: inaktiv` | Hook nicht in settings.json registriert |
+
+Konfiguration in `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash /pfad/zu/piiguard/pii-guard-statusline.sh"
+  }
+}
+```
 
 ---
 
@@ -203,7 +265,9 @@ Hinweis: Claude Code unterstützt keine Prompt-Modifikation durch Hooks. Daher b
 Wenn PII Guard einen Begriff fälschlich blockiert, kann er begründet freigegeben werden:
 
 ```bash
-pii-guard allow "Max Müller" --reason "Fiktiver Testname in der Dokumentation" --who "Thomas Körting"
+docker exec pii-guard pii-guard allow "Max Müller" \
+  --reason "Fiktiver Testname in der Dokumentation" \
+  --who "Thomas Körting"
 ```
 
 Oder direkt in Claude Code: `/allow "Max Müller" Fiktiver Testname in der Dokumentation`
@@ -222,16 +286,16 @@ Overrides gelten nur projektspezifisch (`.pii-guard/overrides.json`).
 
 ### Audit-Log (15 Felder, ISO 27002:2022 Clause 8.15)
 
-Jeder PII-Fund wird mit 15 Feldern protokolliert:
+Jeder PII-Fund wird mit 15 Feldern protokolliert. Zeitstempel werden als UTC gespeichert und in der Anzeige in Lokalzeit umgewandelt.
 
 ```json
 {
-  "timestamp": "2026-03-31T14:22:01.123Z",
+  "timestamp": "2026-04-02T17:55:46.437000+00:00",
   "event_id": "a3f2...",
   "event_type": "PII_MASK",
   "session_id": "b4c1...",
   "user_id": "tkoerting",
-  "system_id": "macbook-tk",
+  "system_id": "myhost",
   "pii_type": "PERSON",
   "pii_count": 1,
   "confidence_score": 0.95,
@@ -249,14 +313,16 @@ Event-Typen: `PII_MASK`, `PII_BLOCK`, `PII_WARN`, `PROMPT_ALLOWED`, `EFFECTIVENE
 ### Compliance-Report
 
 ```bash
-pii-guard audit-report --from 2026-01-01 --to 2026-03-31
-pii-guard audit-report --format csv --output report.csv
+docker exec pii-guard pii-guard audit-report --from 2026-01-01 --to 2026-03-31
+docker exec pii-guard pii-guard audit-report --format csv --output report.csv
 ```
+
+Oder im Browser: `http://localhost:4141/report`
 
 ### Wirksamkeitstest
 
 ```bash
-pii-guard audit-test
+docker exec pii-guard pii-guard audit-test
 ```
 
 ### Adressierte ISO 27001 Controls
@@ -273,16 +339,16 @@ pii-guard audit-test
 
 ## Architektur
 
+### Docker-Modus (empfohlen)
+
+```
+Prompt → pii-guard-hook.sh → HTTP POST localhost:4141 → Container (Presidio+spaCy) → Ergebnis
+```
+
 ### Lokaler Modus
 
 ```
 Prompt → hook.py → Presidio (PII-Erkennung) → Block/Warn/Allow → Audit-Log
-```
-
-### Docker-Modus
-
-```
-Prompt → hook.py → HTTP POST localhost:4141 → Container (Presidio+spaCy) → Ergebnis
 ```
 
 ### Module
@@ -290,15 +356,100 @@ Prompt → hook.py → HTTP POST localhost:4141 → Container (Presidio+spaCy) �
 | Modul | Zweck |
 |-------|-------|
 | `hook.py` | Claude Code Hook (stdin/stdout JSON), Docker-Route |
-| `detector.py` | Presidio-Wrapper, PII-Erkennung (de), NER-Validierungsfilter |
+| `detector.py` | Presidio-Wrapper, PII-Erkennung (de/en), NER-Validierungsfilter |
 | `recognizers.py` | Eigene Recognizer: deutsche Telefonnummern, IPv4 |
 | `substitutor.py` | Faker-basierte typerhaltende Substitution (11 Entity-Typen) |
-| `mapper.py` | Bidirektionales Mapping Original <-> Fake, atomares Schreiben |
+| `mapper.py` | Bidirektionales Mapping Original ↔ Fake, atomares Schreiben |
 | `overrides.py` | Auditierte Override-Verwaltung (begründete Freigaben) |
-| `audit.py` | 15-Felder JSONL-Logging, Log-Rotation, CSV-Export, Reports |
+| `audit.py` | 15-Felder JSONL-Logging, UTC-Speicherung, Log-Rotation, CSV-Export |
 | `config.py` | YAML-Loader, Deep-Merge, Validierung, Plattform-Pfade |
-| `server.py` | HTTP-Server für Docker-Backend (ThreadingHTTPServer) |
+| `server.py` | HTTP-Server für Docker-Backend, Web-UI (ThreadingHTTPServer) |
 | `cli.py` | Click-CLI mit allen Befehlen und Skill-Installation |
+
+---
+
+## Projektstruktur
+
+```
+pii-guard/
+├── src/pii_guard/
+│   ├── __init__.py          # Version, Logging-Setup
+│   ├── hook.py              # Claude Code Hook, Docker-Route
+│   ├── detector.py          # Presidio PII-Erkennung + NER-Filter
+│   ├── recognizers.py       # Deutsche Telefonnummern, IPv4
+│   ├── substitutor.py       # Faker Substitution
+│   ├── mapper.py            # Reversibles Mapping
+│   ├── overrides.py         # Begründete Freigaben
+│   ├── audit.py             # ISO 27001 Audit-Logger
+│   ├── config.py            # YAML-Config Loader
+│   ├── server.py            # Docker HTTP-Server + Web-UI
+│   └── cli.py               # CLI (Click) + Skill-Installation
+├── tests/                   # pytest
+├── docs/
+│   ├── SETUP.md             # Team Setup-Anleitung
+│   └── ...
+├── piiguard/                # Deployment-Verzeichnis (Docker Compose)
+│   ├── docker-compose.yml
+│   ├── pii-guard-hook.sh    # Hook-Script (kein lokales Python nötig)
+│   └── pii-guard-statusline.sh  # Claude Code Statusleiste
+├── scripts/
+│   └── build_local_docker_image.sh
+├── .pii-guard.yaml          # Beispiel-Config
+├── Dockerfile               # Multi-Stage Build
+├── pyproject.toml           # Packaging (hatchling)
+└── README.md
+```
+
+---
+
+## Docker
+
+### Lokales Image bauen
+
+```bash
+cd /pfad/zu/pii-guard
+docker build -t pii-guard:local .
+```
+
+Oder mit dem mitgelieferten Script:
+
+```bash
+./scripts/build_local_docker_image.sh
+```
+
+### Azure Container Registry (Team-Deployment)
+
+```bash
+# Image holen
+az acr login --name piiguard
+docker pull piiguard.azurecr.io/pii-guard:latest
+
+# Neues Image bauen und pushen (nur mit AcrPush-Berechtigung)
+docker build --platform linux/amd64 -t piiguard.azurecr.io/pii-guard:latest .
+docker push piiguard.azurecr.io/pii-guard:latest
+```
+
+### Container aktualisieren
+
+```bash
+docker compose down && docker compose up -d
+```
+
+---
+
+## Fehlerverhalten
+
+| Situation | Verhalten |
+|-----------|-----------|
+| Presidio-Fehler | Prompt wird durchgelassen (on_error: allow) |
+| Docker-Container nicht erreichbar | Fallback: allow oder block (konfigurierbar) |
+| Hook-Timeout | Prompt wird durchgelassen |
+| `jq` oder `curl` fehlen | Prompt wird durchgelassen, Hinweis auf stderr |
+
+```yaml
+on_error: allow   # Prompt durchlassen bei Fehler (Default)
+on_error: block   # Prompt blocken bei Fehler (sicherheitskritische Umgebungen)
+```
 
 ---
 
@@ -322,93 +473,7 @@ python -m pytest tests/ -v
 ruff check src/ tests/
 ```
 
-### Workflow (Parallele Entwicklung)
-
-```
-1. Feature-Branch erstellen    git checkout -b feature/mein-feature
-2. Arbeiten + committen        git commit -m "..."
-3. Pushen                      git push -u origin feature/mein-feature
-4. Pull Request erstellen      gh pr create
-5. Review durch Kollegen
-6. CI grün → Squash and Merge
-```
-
 Kein direkter Push auf `main`. Änderungen nur über Pull Requests mit Review.
-
-### Projektstruktur
-
-```
-pii-guard/
-├── src/pii_guard/
-│   ├── __init__.py          # Version, Logging-Setup
-│   ├── hook.py              # Claude Code Hook, Docker-Route
-│   ├── detector.py          # Presidio PII-Erkennung + NER-Filter
-│   ├── recognizers.py       # Deutsche Telefonnummern, IPv4
-│   ├── substitutor.py       # Faker Substitution
-│   ├── mapper.py            # Reversibles Mapping
-│   ├── overrides.py         # Begründete Freigaben
-│   ├── audit.py             # ISO 27001 Audit-Logger
-│   ├── config.py            # YAML-Config Loader
-│   ├── server.py            # Docker HTTP-Server
-│   └── cli.py               # CLI (Click) + Skill-Installation
-├── tests/                   # 92 Tests (pytest)
-├── docs/
-│   ├── SETUP.md             # Team Setup-Anleitung
-│   └── test-report-*.md     # QA-Testberichte
-├── .github/
-│   ├── workflows/ci.yml     # CI: pytest + ruff
-│   ├── CODEOWNERS           # Review-Pflicht
-│   └── pull_request_template.md
-├── .pii-guard.yaml          # Beispiel-Config
-├── Dockerfile               # Multi-Stage Build
-├── docker-compose.yml       # Docker-Daemon (ACR-Image)
-├── pyproject.toml           # Packaging (hatchling)
-└── README.md
-```
-
----
-
-## Docker
-
-### Azure Container Registry
-
-Das Docker-Image liegt auf der b-imtec ACR:
-
-```
-Registry:  piiguard.azurecr.io
-Image:     piiguard.azurecr.io/pii-guard:latest
-```
-
-### Image aktualisieren
-
-```bash
-docker pull piiguard.azurecr.io/pii-guard:latest
-docker stop pii-guard && docker rm pii-guard
-docker run -d -p 4141:4141 --restart=unless-stopped --name pii-guard piiguard.azurecr.io/pii-guard:latest
-```
-
-### Neues Image bauen und pushen (nur mit AcrPush-Berechtigung)
-
-```bash
-az acr login --name piiguard
-docker build --platform linux/amd64 -t piiguard.azurecr.io/pii-guard:latest .
-docker push piiguard.azurecr.io/pii-guard:latest
-```
-
----
-
-## Fehlerverhalten
-
-| Situation | Verhalten |
-|-----------|-----------|
-| Presidio-Fehler | Prompt wird durchgelassen (on_error: allow) |
-| Docker-Container nicht erreichbar | Fallback: allow oder block (konfigurierbar) |
-| Hook-Timeout | Prompt wird durchgelassen |
-
-```yaml
-on_error: allow   # Prompt durchlassen bei Fehler (Default)
-on_error: block   # Prompt blocken bei Fehler (sicherheitskritische Umgebungen)
-```
 
 ---
 
