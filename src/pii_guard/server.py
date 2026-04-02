@@ -205,7 +205,6 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
   <a href="/">Status</a>
   <a href="/test">Testen</a>
   <a href="/report">Audit-Report</a>
-  <a href="/export">CSV-Export</a>
   <a href="/overrides">Overrides</a>
 </nav>
 <main>
@@ -268,7 +267,7 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
   <table>
     <tr><th>Version</th><td>{_h(pii_guard.__version__)}</td></tr>
     <tr><th>Regeln</th><td>{len(rules)}</td></tr>
-    <tr><th>Allow-List</th><td>{len(allow_list)} Eintraege</td></tr>
+    <tr><th>Allow-List</th><td><a href="/overrides">{len(allow_list)} Eintr&auml;ge</a></td></tr>
     <tr><th>Audit-Log</th><td class="mono">{_h(audit_path)}</td></tr>
     <tr><th>Letzter Eintrag</th><td>{_h(last_ts)}</td></tr>
   </table>
@@ -277,12 +276,16 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
 
     def _handle_toggle(self) -> None:
         """Schaltet PII Guard aktiv/pausiert um (erstellt/löscht Disable-Flag)."""
+        from pii_guard.audit import log_event
+
         self.rfile.read(int(self.headers.get("Content-Length", 0)))
         flag = self._disabled_flag_path()
         if flag.exists():
             flag.unlink()
+            log_event("GUARD_RESUME", self.config, details={"action_taken": "RESUME", "masking_technique": "web-ui"})
         else:
             flag.touch()
+            log_event("GUARD_PAUSE", self.config, details={"action_taken": "PAUSE", "masking_technique": "web-ui"})
         self._redirect("/")
 
     def _handle_test_form(self, result_html: str = "") -> None:
@@ -437,6 +440,7 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
         from pii_guard.overrides import list_overrides
 
         overrides = list_overrides(self.config)
+        allow_list = self.config.get("allow_list", [])
 
         alert_html = ""
         if message:
@@ -464,9 +468,24 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
         else:
             rows = '<tr><td colspan="6" class="empty">Keine aktiven Freigaben.</td></tr>'
 
+        static_rows = ""
+        if allow_list:
+            for term in allow_list:
+                static_rows += f"<tr><td>{_h(term)}</td></tr>"
+        else:
+            static_rows = '<tr><td class="empty">Keine Eintr&auml;ge in der Config.</td></tr>'
+
         content = f"""
 <h1>Overrides</h1>
 {alert_html}
+<div class="card">
+  <h2>Statische Allow-List (.pii-guard.yaml)</h2>
+  <p style="color:#555;font-size:.875rem;margin-bottom:.75rem">Diese Begriffe werden in der Konfigurationsdatei gepflegt und k&ouml;nnen dort bearbeitet werden.</p>
+  <table>
+    <tr><th>Begriff</th></tr>
+    {static_rows}
+  </table>
+</div>
 <div class="card">
   <h2>Freigabe hinzufügen</h2>
   <form method="post" action="/overrides/add">

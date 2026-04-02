@@ -119,6 +119,8 @@ def _disabled_flag_path(config: dict) -> Path:
 @main.command()
 def pause() -> None:
     """Unterbricht die PII-Filterung ohne den Hook zu entfernen."""
+    from pii_guard.audit import log_event
+
     config = load_config()
     flag = _disabled_flag_path(config)
     if flag.exists():
@@ -126,6 +128,7 @@ def pause() -> None:
         return
     flag.parent.mkdir(parents=True, exist_ok=True)
     flag.touch()
+    log_event("GUARD_PAUSE", config, details={"action_taken": "PAUSE", "masking_technique": "cli"})
     click.secho("PII Guard pausiert.", fg="yellow")
     click.echo(f"  Flag: {flag}")
     click.echo("  Fortsetzen mit: pii-guard resume")
@@ -134,12 +137,15 @@ def pause() -> None:
 @main.command()
 def resume() -> None:
     """Setzt die PII-Filterung nach einer Pause fort."""
+    from pii_guard.audit import log_event
+
     config = load_config()
     flag = _disabled_flag_path(config)
     if not flag.exists():
         click.echo("PII Guard läuft bereits.")
         return
     flag.unlink()
+    log_event("GUARD_RESUME", config, details={"action_taken": "RESUME", "masking_technique": "cli"})
     click.secho("PII Guard aktiv.", fg="green")
 
 
