@@ -1,4 +1,5 @@
-FROM python:3.11-slim AS builder
+ARG BASE=python:3.11-slim
+FROM $BASE AS builder
 
 WORKDIR /app
 COPY pyproject.toml README.md ./
@@ -8,7 +9,8 @@ RUN pip install --no-cache-dir . \
     && python -m spacy download de_core_news_lg
 
 # Runtime
-FROM python:3.11-slim
+ARG BASE
+FROM $BASE
 
 WORKDIR /app/data
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages

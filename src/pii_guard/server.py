@@ -210,6 +210,12 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
 <main>
 {content}
 </main>
+<script>
+document.querySelectorAll('[data-utc]').forEach(function(el) {{
+  var d = new Date(el.dataset.utc);
+  if (!isNaN(d)) el.textContent = d.toLocaleString('de-DE');
+}});
+</script>
 </body>
 </html>"""
 
@@ -221,7 +227,7 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
         return audit_path.parent / "disabled"
 
     def _handle_dashboard(self) -> None:
-        from pii_guard.audit import _read_log_entries, utc_to_local
+        from pii_guard.audit import _read_log_entries
 
         config = self.config
         audit_path = Path(config.get("audit", {}).get("path", ".pii-guard/audit.log"))
@@ -231,7 +237,8 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
         blocked = sum(1 for e in entries if e.get("action_taken") == "BLOCK")
         masked = sum(1 for e in entries if e.get("action_taken") == "MASK")
         warned = sum(1 for e in entries if e.get("action_taken") == "WARN")
-        last_ts = utc_to_local(entries[-1].get("timestamp", "")) if entries else "–"
+        last_raw = entries[-1].get("timestamp", "") if entries else ""
+        last_ts = f'<span data-utc="{_h(last_raw)}">{_h(last_raw)}</span>' if last_raw else "–"
 
         rules = config.get("rules", [])
         allow_list = config.get("allow_list", [])
@@ -245,6 +252,32 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
             status_badge = '<span class="badge badge-allow">aktiv</span>'
             toggle_label = "Pausieren"
             toggle_style = "background:#92400e"
+
+        recent = entries[-10:][::-1]
+        recent_rows = "".join(
+            f"<tr>"
+            f"<td><span data-utc=\"{_h(e.get('timestamp', ''))}\">{_h(e.get('timestamp', ''))}</span></td>"
+            f"<td>{_h(e.get('event_type', ''))}</td>"
+            f"<td>{_h(e.get('pii_type', ''))}</td>"
+            f"<td>{_h(e.get('action_taken', ''))}</td>"
+            f"<td class=\"mono\" style=\"font-size:.75rem\">{_h(e.get('preview', ''))}</td>"
+            f"</tr>"
+            for e in recent
+        )
+        recent_table = f"""
+<div class="card">
+  <h2 style="margin-top:0;font-size:1rem">Letzte 10 Log-Eintr&auml;ge</h2>
+  <table>
+    <tr>
+      <th>Zeitpunkt</th>
+      <th>Event</th>
+      <th>PII-Typ</th>
+      <th>Aktion</th>
+      <th>Vorschau</th>
+    </tr>
+    {recent_rows if recent_rows else '<tr><td colspan="5" style="text-align:center;color:#6b7280">Keine Eintr&auml;ge</td></tr>'}
+  </table>
+</div>"""
 
         content = f"""
 <h1>Status</h1>
@@ -269,9 +302,10 @@ class PiiGuardHandler(BaseHTTPRequestHandler):
     <tr><th>Regeln</th><td>{len(rules)}</td></tr>
     <tr><th>Allow-List</th><td><a href="/overrides">{len(allow_list)} Eintr&auml;ge</a></td></tr>
     <tr><th>Audit-Log</th><td class="mono">{_h(audit_path)}</td></tr>
-    <tr><th>Letzter Eintrag</th><td>{_h(last_ts)}</td></tr>
+    <tr><th>Letzter Eintrag</th><td>{last_ts}</td></tr>
   </table>
-</div>"""
+</div>
+{recent_table}"""
         self._send_html(self._page("Status", content))
 
     def _handle_toggle(self) -> None:
