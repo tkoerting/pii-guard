@@ -11,6 +11,8 @@ venv/
 .pii-guard/session-map.json
 .pii-guard/audit.log
 .pii-guard/overrides.json
+piiguard/.pii-guard.yaml
+piiguard/azure_login.sh
 
 # IDE
 .idea/
