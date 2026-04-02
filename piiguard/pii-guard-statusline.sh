@@ -52,7 +52,7 @@ if [ -f "$PII_GUARD_FLAG_DIR/disabled" ]; then
 fi
 
 # 3. Container erreichbar?
-if ! curl -sf --max-time 1 "$PII_GUARD_URL/health" >/dev/null 2>&1; then
+if ! curl -sf --max-time 3 "$PII_GUARD_URL/health" >/dev/null 2>&1; then
     echo "PII: kein Container"
     exit 0
 fi
