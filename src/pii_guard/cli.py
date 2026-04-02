@@ -161,7 +161,7 @@ def audit_export(from_date: str | None, output: str | None) -> None:
 def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: str | None) -> None:
     """Generiert einen strukturierten Compliance-Report."""
     import pii_guard
-    from pii_guard.audit import _config_hash, _read_log_entries, export_csv
+    from pii_guard.audit import _config_hash, _read_log_entries, export_csv, utc_to_local
 
     config = load_config()
     audit_config = config.get("audit", {})
@@ -264,7 +264,7 @@ def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: s
             lines.append("## Wirksamkeitstests")
             lines.append("")
             lines.append(f"- **Anzahl Testläufe**: {len(tests)}")
-            lines.append(f"- **Letzter Test**: {tests[-1].get('timestamp', 'unbekannt')}")
+            lines.append(f"- **Letzter Test**: {utc_to_local(tests[-1].get('timestamp', ''))}")
 
     report = "\n".join(lines) + "\n"
 
@@ -435,7 +435,8 @@ def allow(term: str, reason: str, who: str | None, entity_type: str | None) -> N
     click.secho(f"Freigegeben: '{term}'", fg="green")
     click.echo(f"  Begründung: {reason}")
     click.echo(f"  Von: {entry['added_by']}")
-    click.echo(f"  Zeitpunkt: {entry['timestamp']}")
+    from pii_guard.audit import utc_to_local
+    click.echo(f"  Zeitpunkt: {utc_to_local(entry['timestamp'])}")
 
 
 @main.command()
@@ -479,7 +480,8 @@ def list_overrides_cmd() -> None:
     for entry in overrides:
         click.echo(f"  Begriff:     {entry.get('term')}")
         click.echo(f"  Begründung:  {entry.get('reason')}")
-        click.echo(f"  Freigabe:    {entry.get('added_by')} am {entry.get('timestamp', '?')[:10]}")
+        from pii_guard.audit import utc_to_local
+        click.echo(f"  Freigabe:    {entry.get('added_by')} am {utc_to_local(entry.get('timestamp', ''))[:10]}")
         if entry.get("entity_type"):
             click.echo(f"  PII-Typ:     {entry.get('entity_type')}")
         click.echo()
