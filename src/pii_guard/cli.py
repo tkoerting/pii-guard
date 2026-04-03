@@ -145,7 +145,8 @@ def resume() -> None:
         click.echo("PII Guard läuft bereits.")
         return
     flag.unlink()
-    log_event("GUARD_RESUME", config, details={"action_taken": "RESUME", "masking_technique": "cli"})
+    details = {"action_taken": "RESUME", "masking_technique": "cli"}
+    log_event("GUARD_RESUME", config, details=details)
     click.secho("PII Guard aktiv.", fg="green")
 
 
@@ -520,7 +521,8 @@ def list_overrides_cmd() -> None:
         click.echo(f"  Begriff:     {entry.get('term')}")
         click.echo(f"  Begründung:  {entry.get('reason')}")
         from pii_guard.audit import utc_to_local
-        click.echo(f"  Freigabe:    {entry.get('added_by')} am {utc_to_local(entry.get('timestamp', ''))[:10]}")
+        ts = utc_to_local(entry.get("timestamp", ""))[:10]
+        click.echo(f"  Freigabe:    {entry.get('added_by')} am {ts}")
         if entry.get("entity_type"):
             click.echo(f"  PII-Typ:     {entry.get('entity_type')}")
         click.echo()

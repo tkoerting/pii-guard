@@ -22,7 +22,6 @@ import json
 import logging
 import ssl
 import threading
-import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -67,9 +66,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(length) if length else b""
             data = json.loads(body) if body else {}
 
-            # Merken ob Client streaming angefragt hat
-            client_wants_stream = data.get("stream", False)
-
             # Streaming im Upstream-Request IMMER aktivieren.
             # Damit greift das 20MB-Limit der API nicht (Issue #8).
             data["stream"] = True
@@ -81,7 +77,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
             # Request an Anthropic API weiterleiten
             upstream_body = json.dumps(data).encode("utf-8")
-            upstream_url = f"{_ANTHROPIC_API}{self.path}"
 
             headers = {}
             for key, value in self.headers.items():
