@@ -3,7 +3,7 @@
 **Datum:** 2026-04-01  
 **Version:** 0.1.0 (pip-Installation)  
 **Umgebung:** Windows 11, Python 3.12, Claude Code VS Code Extension  
-**Modus:** Docker (`piiguard.azurecr.io/pii-guard:latest`, Port 7437)  
+**Modus:** Docker (`piiguard.azurecr.io/pii-guard:latest`, Port 4141)  
 **Tester:** b-imtec (Praxiseinsatz, kein automatisierter QA-Lauf)
 
 ---
@@ -146,11 +146,11 @@ aber für den Hook-Client), der ohne Python-Startup-Overhead auf dem localhost l
 Bei nicht laufendem Container greift `on_error: allow` still — kein Hinweis im Chat.
 
 **Workaround (lokal implementiert):** `pii-guard-startup-check.py` — prüft einmal pro
-Session per TCP-Check ob Port 7437 erreichbar ist. Bei Fehler: Warnung als Claude-Kontext.
+Session per TCP-Check ob Port 4141 erreichbar ist. Bei Fehler: Warnung als Claude-Kontext.
 
 ```python
 # Einmalige Prüfung pro Session via session_id aus Hook-Input
-if not is_running(host="127.0.0.1", port=7437):
+if not is_running(host="127.0.0.1", port=4141):
     print("[PII Guard] WARNUNG: Container nicht erreichbar. Prompts werden nicht gefiltert!")
 ```
 

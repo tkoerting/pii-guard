@@ -25,6 +25,17 @@ log = logging.getLogger("pii_guard.audit")
 _IS_WINDOWS = sys.platform == "win32"
 
 
+def utc_to_local(ts: str) -> str:
+    """Konvertiert einen UTC-Zeitstempel (ISO-Format) zur lokalen Zeit für die Anzeige."""
+    try:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    except (ValueError, TypeError):
+        return ts
+
+
 def _config_hash(config: dict) -> str:
     """SHA256 über die aktive Config (erkennt Threshold-Änderungen)."""
     raw = json.dumps(config, sort_keys=True, ensure_ascii=False)

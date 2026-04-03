@@ -72,7 +72,7 @@ mapping:
 # docker:
 #   enabled: false
 #   host: 127.0.0.1
-#   port: 7437
+#   port: 4141
 
 # Verhalten bei Fehlern (allow = durchlassen, block = sperren)
 # on_error: allow

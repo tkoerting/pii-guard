@@ -1,12 +1,12 @@
 services:
   pii-guard:
-    image: piiguard.azurecr.io/pii-guard:latest
+    image: pii-guard:local
     container_name: pii-guard
     ports:
-      - "127.0.0.1:7437:7437"
+      - "127.0.0.1:4141:4141"
     volumes:
-      - ./.pii-guard.yaml:/app/data/.pii-guard.yaml:ro
-      - ./.pii-guard:/app/data/.pii-guard
+      - ../.pii-guard.yaml:/app/data/.pii-guard.yaml:ro
+      - ../.pii-guard:/app/data/.pii-guard
     restart: unless-stopped
     read_only: true
     tmpfs:

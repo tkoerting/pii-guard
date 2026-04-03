@@ -110,6 +110,45 @@ def off() -> None:
     _set_hook_enabled(False)
 
 
+def _disabled_flag_path(config: dict) -> Path:
+    """Pfad zur Disable-Flag-Datei, abgeleitet aus der Audit-Config."""
+    audit_path = config.get("audit", {}).get("path", ".pii-guard/audit.log")
+    return Path(audit_path).parent / "disabled"
+
+
+@main.command()
+def pause() -> None:
+    """Unterbricht die PII-Filterung ohne den Hook zu entfernen."""
+    from pii_guard.audit import log_event
+
+    config = load_config()
+    flag = _disabled_flag_path(config)
+    if flag.exists():
+        click.echo("PII Guard ist bereits pausiert.")
+        return
+    flag.parent.mkdir(parents=True, exist_ok=True)
+    flag.touch()
+    log_event("GUARD_PAUSE", config, details={"action_taken": "PAUSE", "masking_technique": "cli"})
+    click.secho("PII Guard pausiert.", fg="yellow")
+    click.echo(f"  Flag: {flag}")
+    click.echo("  Fortsetzen mit: pii-guard resume")
+
+
+@main.command()
+def resume() -> None:
+    """Setzt die PII-Filterung nach einer Pause fort."""
+    from pii_guard.audit import log_event
+
+    config = load_config()
+    flag = _disabled_flag_path(config)
+    if not flag.exists():
+        click.echo("PII Guard läuft bereits.")
+        return
+    flag.unlink()
+    log_event("GUARD_RESUME", config, details={"action_taken": "RESUME", "masking_technique": "cli"})
+    click.secho("PII Guard aktiv.", fg="green")
+
+
 @main.command()
 @click.option("--check", is_flag=True, help="Exit-Code 1 wenn keine Config gefunden")
 def status(check: bool) -> None:
@@ -161,7 +200,7 @@ def audit_export(from_date: str | None, output: str | None) -> None:
 def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: str | None) -> None:
     """Generiert einen strukturierten Compliance-Report."""
     import pii_guard
-    from pii_guard.audit import _config_hash, _read_log_entries, export_csv
+    from pii_guard.audit import _config_hash, _read_log_entries, export_csv, utc_to_local
 
     config = load_config()
     audit_config = config.get("audit", {})
@@ -264,7 +303,7 @@ def audit_report(from_date: str | None, to_date: str | None, fmt: str, output: s
             lines.append("## Wirksamkeitstests")
             lines.append("")
             lines.append(f"- **Anzahl Testläufe**: {len(tests)}")
-            lines.append(f"- **Letzter Test**: {tests[-1].get('timestamp', 'unbekannt')}")
+            lines.append(f"- **Letzter Test**: {utc_to_local(tests[-1].get('timestamp', ''))}")
 
     report = "\n".join(lines) + "\n"
 
@@ -435,7 +474,8 @@ def allow(term: str, reason: str, who: str | None, entity_type: str | None) -> N
     click.secho(f"Freigegeben: '{term}'", fg="green")
     click.echo(f"  Begründung: {reason}")
     click.echo(f"  Von: {entry['added_by']}")
-    click.echo(f"  Zeitpunkt: {entry['timestamp']}")
+    from pii_guard.audit import utc_to_local
+    click.echo(f"  Zeitpunkt: {utc_to_local(entry['timestamp'])}")
 
 
 @main.command()
@@ -479,7 +519,8 @@ def list_overrides_cmd() -> None:
     for entry in overrides:
         click.echo(f"  Begriff:     {entry.get('term')}")
         click.echo(f"  Begründung:  {entry.get('reason')}")
-        click.echo(f"  Freigabe:    {entry.get('added_by')} am {entry.get('timestamp', '?')[:10]}")
+        from pii_guard.audit import utc_to_local
+        click.echo(f"  Freigabe:    {entry.get('added_by')} am {utc_to_local(entry.get('timestamp', ''))[:10]}")
         if entry.get("entity_type"):
             click.echo(f"  PII-Typ:     {entry.get('entity_type')}")
         click.echo()
@@ -530,7 +571,7 @@ def docker() -> None:
 
 
 @docker.command()
-@click.option("--port", default=7437, help="Port für den PII Guard Daemon")
+@click.option("--port", default=4141, help="Port für den PII Guard Daemon")
 @click.option("--build", "do_build", is_flag=True, help="Docker Image neu bauen")
 def start(port: int, do_build: bool) -> None:
     """Startet den PII Guard Docker-Daemon."""
@@ -611,7 +652,7 @@ def docker_status() -> None:
     click.echo(f"Container: {result.stdout.strip()}")
 
     config = load_config()
-    port = config.get("docker", {}).get("port", 7437)
+    port = config.get("docker", {}).get("port", 4141)
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as resp:
             data = json.loads(resp.read())
@@ -723,6 +764,44 @@ Der User moechte den aktuellen PII Guard Status sehen.
    pii-guard overrides
    ```
 3. Fasse die Ergebnisse uebersichtlich zusammen.
+""",
+    "pii-pause.md": """\
+# PII Guard: Filterung pausieren oder fortsetzen
+
+Der User moechte PII Guard voruebergehend deaktivieren oder nach einer Pause
+wieder aktivieren. Der Hook bleibt registriert – nur die Verarbeitung wird
+ausgesetzt.
+
+## Ablauf
+
+1. Pruefe den aktuellen Zustand:
+   ```bash
+   docker exec pii-guard pii-guard status
+   ls ~/mydocker/piiguard/.pii-guard/disabled 2>/dev/null && echo "PAUSIERT" || echo "AKTIV"
+   ```
+
+2. Entscheide anhand des Ergebnisses:
+   - Ist PII Guard **aktiv** und der User will pausieren:
+     ```bash
+     docker exec pii-guard pii-guard pause
+     ```
+   - Ist PII Guard **pausiert** und der User will fortsetzen:
+     ```bash
+     docker exec pii-guard pii-guard resume
+     ```
+   - Ist der Container nicht gestartet, weise den User darauf hin:
+     ```bash
+     docker start pii-guard
+     ```
+
+3. Bestaetige den neuen Zustand dem User.
+
+## Wichtig
+
+- Pausieren entfernt den Hook NICHT aus den Claude Code Settings.
+- Waehrend der Pause werden Prompts ungefiltert weitergeleitet.
+- Der Zustand ist persistent – er bleibt auch nach einem Neustart der
+  Claude Code Session erhalten, bis explizit resume aufgerufen wird.
 """,
 }
 

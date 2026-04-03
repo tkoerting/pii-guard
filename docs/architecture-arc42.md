@@ -71,9 +71,9 @@ PII Guard ist ein lokaler Datenschutz-Filter für KI-Coding-Tools. Er erkennt pe
 
 ```
                     ┌──────────────────────────────────────────────┐
-                    │              Entwickler-Rechner               │
+                    │              Entwickler-Rechner              │
                     │                                              │
-  Entwickler ──────>│  KI-Tool (Claude Code / Cursor / Copilot)   │
+  Entwickler ──────>│  KI-Tool (Claude Code / Cursor / Copilot)    │
                     │       │                                      │
                     │       v                                      │
                     │  ┌─────────────┐                             │
@@ -96,7 +96,7 @@ PII Guard ist ein lokaler Datenschutz-Filter für KI-Coding-Tools. Er erkennt pe
 | Schnittstelle | Technologie | Beschreibung |
 |--------------|-------------|-------------|
 | Claude Code Hook | stdin/stdout JSON | `user_prompt_submit` Event |
-| Docker-API | HTTP POST localhost:7437 | Alternativ zum lokalen Hook |
+| Docker-API | HTTP POST localhost:4141 | Alternativ zum lokalen Hook |
 | Presidio | Python API | NER-basierte PII-Erkennung |
 | spaCy | Python API | NLP-Modelle (de_core_news_lg, en_core_web_lg) |
 | Faker | Python API | Typerhaltende Fake-Daten-Generierung |
@@ -133,19 +133,19 @@ PII Guard ist ein lokaler Datenschutz-Filter für KI-Coding-Tools. Er erkennt pe
 ┌────────────────────────────────────────────────────────────────┐
 │                         PII Guard                              │
 │                                                                │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │  hook.py  │─>│detector.py│─>│substitutor│─>│ mapper.py│      │
-│  │(Einstieg) │  │(Erkennung)│  │   .py     │  │(Mapping) │      │
-│  └─────┬─────┘  └──────────┘  └──────────┘  └──────────┘      │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌──────────┐     │
+│  │  hook.py  │─>│detector.py│─>│substitutor│─>│ mapper.py│     │
+│  │(Einstieg) │  │(Erkennung)│  │   .py     │  │(Mapping) │     │
+│  └─────┬─────┘  └───────────┘  └───────────┘  └──────────┘     │
 │        │                                                       │
 │        v                                                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                     │
+│  ┌──────────┐  ┌──────────┐  ┌───────────┐                     │
 │  │ audit.py │  │ config.py│  │ server.py │                     │
 │  │(Logging) │  │(Config)  │  │(Docker)   │                     │
-│  └──────────┘  └──────────┘  └──────────┘                     │
+│  └──────────┘  └──────────┘  └───────────┘                     │
 │                                                                │
 │  ┌──────────┐                                                  │
-│  │  cli.py  │ (Benutzerschnittstelle)                         │
+│  │  cli.py  │ (Benutzerschnittstelle)                          │
 │  └──────────┘                                                  │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -209,7 +209,7 @@ Entwickler           Claude Code          hook.py        detector.py     substit
     │                     │                  │── substitute ──────────────────>│              │
     │                     │                  │                                 │── Faker ────>│
     │                     │                  │<── maskierter Text ─────────────│              │
-    │                     │                  │── log_findings ────────────────────────────────>│
+    │                     │                  │── log_findings ───────────────────────────────>│
     │                     │                  │                                                │
     │                     │<── stdout JSON ──│                                                │
     │                     │   {decision,     │                                                │
@@ -255,19 +255,19 @@ hook.py                                    Ergebnis
 │             Entwickler-Rechner               │
 │                                              │
 │  ┌────────────────────────────────────────┐  │
-│  │ Python 3.11+ Environment              │  │
-│  │  ├── pii-guard (pip install)          │  │
-│  │  ├── presidio-analyzer                │  │
-│  │  ├── spacy + de_core_news_lg (~500MB) │  │
-│  │  └── faker                            │  │
+│  │ Python 3.11+ Environment               │  │
+│  │  ├── pii-guard (pip install)           │  │
+│  │  ├── presidio-analyzer                 │  │
+│  │  ├── spacy + de_core_news_lg (~500MB)  │  │
+│  │  └── faker                             │  │
 │  └────────────────────────────────────────┘  │
 │                                              │
 │  ┌────────────────────────────────────────┐  │
-│  │ Projekt-Verzeichnis                   │  │
-│  │  ├── .pii-guard.yaml (Config, im Repo)│  │
-│  │  └── .pii-guard/                      │  │
-│  │       ├── session-map.json (lokal)    │  │
-│  │       └── audit.log (lokal)           │  │
+│  │ Projekt-Verzeichnis                    │  │
+│  │  ├── .pii-guard.yaml (Config, im Repo) │  │
+│  │  └── .pii-guard/                       │  │
+│  │       ├── session-map.json (lokal)     │  │
+│  │       └── audit.log (lokal)            │  │
 │  └────────────────────────────────────────┘  │
 └──────────────────────────────────────────────┘
 ```
@@ -278,20 +278,20 @@ hook.py                                    Ergebnis
 ┌──────────────────────────────────────────────┐
 │             Entwickler-Rechner               │
 │                                              │
-│  ┌─────────────────────┐  ┌───────────────┐ │
-│  │ Host (dünn)         │  │ Docker        │ │
-│  │  └── hook.py        │  │ Container     │ │
-│  │     (nur stdlib)    │  │  ├── Presidio │ │
-│  │                     │  │  ├── spaCy    │ │
-│  │   HTTP POST ───────────>│  ├── Faker   │ │
-│  │   localhost:7437    │  │  └── server.py│ │
-│  └─────────────────────┘  └───────┬───────┘ │
-│                                   │         │
-│  ┌────────────────────────────────┘         │
-│  │ Volume-Mounts:                           │
-│  │  .pii-guard.yaml ──> /app/data/ (ro)    │
-│  │  .pii-guard/ ──────> /app/data/ (rw)    │
-│  └──────────────────────────────────────────│
+│  ┌─────────────────────┐  ┌───────────────┐  │
+│  │ Host (dünn)         │  │ Docker        │  │
+│  │  └── hook.py        │  │ Container     │  │
+│  │     (nur stdlib)    │  │  ├── Presidio │  │
+│  │                     │  │  ├── spaCy    │  │
+│  │   HTTP POST ──────────>│  ├── Faker    │  │
+│  │   localhost:4141    │  │  └── server.py│  │
+│  └─────────────────────┘  └───────┬───────┘  │
+│                                   │          │
+│  ┌────────────────────────────────┘          │
+│  │ Volume-Mounts:                            │
+│  │  .pii-guard.yaml ──> /app/data/ (ro)      │
+│  │  .pii-guard/ ──────> /app/data/ (rw)      │
+│  └───────────────────────────────────────────│
 └──────────────────────────────────────────────┘
 ```
 
@@ -301,7 +301,7 @@ hook.py                                    Ergebnis
 |------------|------|
 | Base Image | python:3.11-slim |
 | Größe | ~2 GB (inkl. spaCy-Modelle) |
-| Port | 127.0.0.1:7437 (nur lokal) |
+| Port | 127.0.0.1:4141 (nur lokal) |
 | Restart | unless-stopped |
 | Security | read_only, no-new-privileges, tmpfs /tmp |
 | Healthcheck | GET /health (10s Intervall, 30s Start-Period) |
