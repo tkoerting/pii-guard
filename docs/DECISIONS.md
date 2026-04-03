@@ -107,6 +107,27 @@ PII Guard wurde von Thomas Körting konzipiert, architektonisch entworfen und du
 - **Auslöser**: Analyse von Markus Thomanek (Branch `compose`)
 - **Entscheider**: Thomas Körting + Markus Thomanek
 
+### E14: Port 4141 statt 7437
+- **Datum**: 2026-04-03
+- **Entscheidung**: Default-Port für den PII Guard Server von 7437 auf 4141 geändert
+- **Begründung**: 4141 = "KIKI" (KI-KI) – leicht zu merken, keine Kollision mit bekannten Diensten. Durchgängig geändert in config.py, hook.py, cli.py, Dockerfile, docker-compose.yml.
+- **Auslöser**: Markus Thomanek (Branch `compose`)
+- **Entscheider**: Thomas Körting + Markus Thomanek
+
+### E15: Web-UI im Docker-Container
+- **Datum**: 2026-04-03
+- **Entscheidung**: Status-Dashboard, PII-Test, Audit-Reports und Override-Verwaltung als Web-UI im Container
+- **Begründung**: Compliance-Verantwortliche und nicht-technische Teammitglieder brauchen Zugang zu Status und Audit-Reports ohne Terminal. Web-UI eliminiert CLI-Abhängigkeit für Monitoring.
+- **Auslöser**: Markus Thomanek (Branch `compose`, ursprünglich Issue #11)
+- **Entscheider**: Thomas Körting + Markus Thomanek
+
+### E16: SSE-Buffering im Proxy (Streaming upstream, Non-Stream downstream)
+- **Datum**: 2026-04-03
+- **Entscheidung**: Proxy sendet immer `stream: true` an die Anthropic API, puffert die SSE-Events, und liefert das Ergebnis als Non-Stream-Response an den Client
+- **Begründung**: Löst das 20MB-Request-Limit (Issue #8) ohne echtes Client-Streaming implementieren zu müssen. Reverse-Mapping funktioniert weiterhin auf der kompletten Antwort.
+- **Auslöser**: Stephan (Branch `feedback/sba-field-test`)
+- **Entscheider**: Thomas Körting
+
 ---
 
 ## Reviews
