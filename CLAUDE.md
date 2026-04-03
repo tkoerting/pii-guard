@@ -28,27 +28,28 @@ pii-guard/
 ├── src/pii_guard/
 │   ├── __init__.py          # Version, Logging-Setup
 │   ├── hook.py              # Claude Code Hook + Docker-Route
-│   ├── detector.py          # Presidio-Wrapper (PII-Erkennung, de/en)
+│   ├── detector.py          # Presidio-Wrapper (PII-Erkennung, nur de)
+│   ├── recognizers.py       # Custom Recognizer (Phone, IP, API Key, Password)
 │   ├── substitutor.py       # Typerhaltende Substitution (Faker, Locale aus Config)
 │   ├── mapper.py            # Reversibles Mapping (atomares Schreiben, Windows-kompatibel)
+│   ├── overrides.py         # Begründete Freigaben (audit-trail-fähig)
 │   ├── audit.py             # ISO 27001 Audit-Logger (15 Felder, Rotation, Reports)
 │   ├── config.py            # YAML-Config Loader (Deep-Merge, Validierung, Plattform-Pfade)
-│   ├── server.py            # Docker HTTP-Server (ThreadingHTTPServer)
-│   └── cli.py               # CLI: init, test, status, audit-*, docker
-├── tests/                   # 93 Tests (pytest, alle gemockt)
-│   ├── test_detector.py
-│   ├── test_substitutor.py
-│   ├── test_mapper.py
-│   ├── test_hook.py
-│   ├── test_hook_docker.py
-│   ├── test_audit.py
-│   ├── test_config.py
-│   ├── test_server.py
-│   └── test_integration.py
+│   ├── server.py            # Docker HTTP-Server + Web-UI (Dashboard, Test, Reports, Overrides)
+│   ├── proxy.py             # Transparenter API-Proxy mit bidirektionalem PII-Mapping
+│   └── cli.py               # CLI: init, test, status, audit-*, docker, pause/resume, allow/revoke
+├── piiguard/                # Deploy-Paket (für Docker-only Setup ohne Python)
+│   ├── pii-guard-hook.sh    # Bash-Hook (curl + jq, ersetzt hook.py im Docker-Modus)
+│   ├── pii-guard-statusline.sh  # Claude Code Statusleiste
+│   ├── .pii-guard.yaml      # Sample-Config für Docker-Setup
+│   ├── docker_install.sh    # Docker-Installation (Ubuntu/WSL2)
+│   └── azure_login.sh       # ACR Login
+├── scripts/
+│   └── build_local_docker_image.sh  # Lokaler Docker-Build
+├── tests/                   # 92 Tests (pytest, alle gemockt)
 ├── .pii-guard.yaml          # Beispiel-Config
 ├── Dockerfile               # Multi-Stage Build (spaCy eingebacken)
-├── docker-compose.yml       # Docker-Daemon Setup
-├── .dockerignore
+├── docker-compose.yml       # Docker-Daemon Setup (Port 4141)
 ├── pyproject.toml           # Packaging (hatchling)
 ├── README.md
 └── CLAUDE.md
@@ -99,25 +100,44 @@ pii-guard/
 - `copy.deepcopy` für Thread-Safety
 
 ### server.py
-- `ThreadingHTTPServer` mit POST /process und GET /health
+- `ThreadingHTTPServer` mit API + Web-UI
+- API: POST /process, GET /health
+- Web-UI: GET / (Dashboard), GET /test, GET /report, GET /export, GET /overrides
+- Web-UI: POST /test, POST /overrides/add, POST /overrides/remove, POST /toggle
+- HTML-Escaping gegen XSS (`_h()`)
+- Pause/Resume über Flag-Datei (`.pii-guard/disabled`)
 - `threading.Lock` um `process_prompt()` (Thread-Safety)
 - Engine-Warmup beim Start (spaCy vorladen)
-- 400 Bad Request bei fehlendem Content-Length
+
+### proxy.py
+- Transparenter API-Proxy (Port 7438) zwischen Claude Code und Anthropic API
+- PII-Maskierung in Request-Messages via `substitute_pii()`
+- Reverse-Mapping in API-Antworten via `mapper.reverse_map()`
+- SSE-Buffering: `stream: true` upstream (umgeht 20MB-Limit), Non-Stream downstream
+- `_buffer_sse_stream()` sammelt SSE-Events und baut Non-Stream-Response
+- Gzip-Dekomprimierung als Fallback
+- Aktivierung: `ANTHROPIC_BASE_URL=http://localhost:7438`
 
 ### cli.py
 - `pii-guard init [--with-gitleaks]` – Projekt initialisieren
 - `pii-guard test "Text"` – PII-Erkennung testen
 - `pii-guard status` – Config und Audit-Log anzeigen
+- `pii-guard on/off` – Hook in Claude Code Settings aktivieren/deaktivieren
+- `pii-guard pause/resume` – Filterung unterbrechen/fortsetzen (Hook bleibt aktiv)
+- `pii-guard allow "Begriff" --reason "..."` – Begründete Freigabe
+- `pii-guard revoke "Begriff"` – Freigabe widerrufen
+- `pii-guard overrides` – Aktive Freigaben anzeigen
 - `pii-guard audit-export` – CSV-Export
 - `pii-guard audit-report [--format markdown|csv]` – Compliance-Report
 - `pii-guard audit-test [--export csv]` – Wirksamkeitstest (PASS/FAIL)
 - `pii-guard docker start|stop|status` – Docker-Daemon verwalten
+- `pii-guard proxy start` – API-Proxy starten
 
 ## Konventionen
 
 - Python 3.11+
 - Packaging: pyproject.toml (hatchling)
-- Tests: pytest (93 Tests, alle gemockt)
+- Tests: pytest (92 Tests, alle gemockt)
 - Linting: ruff
 - Logging: `logging.getLogger("pii_guard.modul")` in allen Modulen
 - Type Hints: ja
@@ -130,14 +150,20 @@ pii-guard/
 ## Abhängigkeiten
 
 - presidio-analyzer + presidio-anonymizer
-- spacy + de_core_news_lg + en_core_web_lg
+- spacy + de_core_news_lg
 - faker
 - pyyaml
 - click (CLI)
 
-## Offene Entscheidungen (v0.3.0)
+## Ports
 
+- **4141** – PII Guard Server (Docker, Web-UI + API)
+- **7438** – PII Guard Proxy (transparenter API-Proxy)
+
+## Offene Entscheidungen
+
+- [ ] Web-UI Auth/CSRF (#21) – niedrige Prio solange localhost-only
+- [ ] Streaming zum Client (#7) – aktuell nur upstream-seitig
 - [ ] Hook-Mechanismus für Cursor / Copilot (Claude Code ist fertig)
-- [ ] Reverse-Mapping: automatisch (Hook) oder manuell (CLI `pii-guard unmap`)
 - [ ] Config-Hierarchie: Gruppen-Config -> Firmen-Config -> Projekt-Config
 - [ ] Policy-Templates (`pii-guard init --with-policy`)
