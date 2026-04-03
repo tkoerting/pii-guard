@@ -24,7 +24,7 @@
 cat > /dev/null
 
 PII_GUARD_URL="${PII_GUARD_URL:-http://127.0.0.1:4141}"
-PII_GUARD_FLAG_DIR="${PII_GUARD_FLAG_DIR:-$HOME/mydocker/piiguard/.pii-guard}"
+PII_GUARD_FLAG_DIR="${PII_GUARD_FLAG_DIR:-.pii-guard}"
 SETTINGS="$HOME/.claude/settings.json"
 
 # 1. Hook registriert?
