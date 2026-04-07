@@ -4,7 +4,7 @@
 
 import logging
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 # Standard-Logging auf stderr (stdout ist für Hook-JSON reserviert).
 # NullHandler als Default – wird nur aktiv wenn der Aufrufer konfiguriert.

@@ -143,4 +143,5 @@ class TestAuditTrail:
         assert entry["pii_type"] == "PERSON"
         assert "event_id" in entry
         assert "session_id" in entry
-        assert entry["tool_version"] == "0.1.0"
+        from pii_guard import __version__
+        assert entry["tool_version"] == __version__
