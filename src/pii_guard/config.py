@@ -56,6 +56,7 @@ _DEFAULT_CONFIG = {
         "path": ".pii-guard/audit.log",
         "format": "jsonl",
         "commit_summary": True,
+        "detail_level": "standard",
     },
     "mapping": {
         "enabled": True,
@@ -116,6 +117,14 @@ def _validate_config(config: dict) -> None:
     docker_port = docker.get("port", 4141)
     if not isinstance(docker_port, int) or docker_port < 1 or docker_port > 65535:
         raise ConfigError(f"docker.port '{docker_port}' ist ungültig (1-65535)")
+
+    # Audit
+    detail_level = config.get("audit", {}).get("detail_level", "standard")
+    if detail_level not in {"standard", "detailed"}:
+        raise ConfigError(
+            f"audit.detail_level '{detail_level}' ist ungültig. "
+            f"Erlaubt: standard, detailed"
+        )
 
     # on_error
     on_error = config.get("on_error", "allow")

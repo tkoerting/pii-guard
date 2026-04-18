@@ -126,6 +126,9 @@ def log_findings(
     system_id = socket.gethostname()
 
     action_map = {"auto_mask": "MASK", "block": "BLOCK", "warn": "WARN"}
+    detailed = audit_config.get("detail_level", "standard") == "detailed"
+
+    from pii_guard.detector import _NER_ENTITY_TYPES
 
     with log_path.open("a", encoding="utf-8", newline="") as f:
         for finding in findings:
@@ -149,6 +152,13 @@ def log_findings(
                 "config_hash": cfg_hash,
                 "preview": finding.masked_preview,
             }
+
+            if detailed:
+                entry["original_text"] = finding.text
+                entry["detection_method"] = (
+                    "NER" if finding.entity_type in _NER_ENTITY_TYPES else "PATTERN"
+                )
+
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     if is_new_file:
