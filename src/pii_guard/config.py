@@ -61,7 +61,7 @@ _DEFAULT_CONFIG = {
     "mapping": {
         "enabled": True,
         "path": ".pii-guard/session-map.json",
-        "auto_cleanup": True,
+        "auto_cleanup": False,
     },
     "docker": {
         "enabled": False,

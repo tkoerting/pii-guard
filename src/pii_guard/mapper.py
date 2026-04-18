@@ -26,7 +26,7 @@ class SessionMapper:
         mapping_config = config.get("mapping", {})
         self.enabled = mapping_config.get("enabled", True)
         self.path = Path(mapping_config.get("path", ".pii-guard/session-map.json"))
-        self.auto_cleanup = mapping_config.get("auto_cleanup", True)
+        self.auto_cleanup = mapping_config.get("auto_cleanup", False)
 
         self._forward: dict[str, str] = {}   # original → fake
         self._reverse: dict[str, str] = {}   # fake → original
