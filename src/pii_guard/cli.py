@@ -164,9 +164,23 @@ def status(check: bool) -> None:
         allow_list = config.get("allow_list", [])
         click.echo(f"Allow-List: {len(allow_list)} Einträge")
 
+        # Modus: Hook kann nur blocken, Proxy kann maskieren
+        has_mask_rules = any(r.get("action") == "auto_mask" for r in rules)
+        docker_enabled = config.get("docker", {}).get("enabled", False)
+        if has_mask_rules and not docker_enabled:
+            click.secho(
+                "Modus: Hook (auto_mask wirkt als Block"
+                " – für Maskierung: pii-guard proxy start)",
+                fg="yellow",
+            )
+        elif docker_enabled:
+            click.echo("Modus: Docker (Maskierung verfügbar)")
+        else:
+            click.echo("Modus: Hook")
+
         audit_path = Path(config.get("audit", {}).get("path", ".pii-guard/audit.log"))
         if audit_path.exists():
-            lines = len(audit_path.read_text().splitlines())
+            lines = len(audit_path.read_text(encoding="utf-8").splitlines())
             click.echo(f"Audit-Log: {audit_path} ({lines} Einträge)")
         else:
             click.echo("Audit-Log: noch keine Einträge")

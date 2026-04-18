@@ -130,7 +130,9 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
         reason = (
             f"PII Guard: Personenbezogene Daten erkannt"
             f" – {', '.join(details)}."
-            f" Bitte entferne die PII aus deinem Prompt."
+            f" Bitte entferne die PII aus deinem Prompt"
+            f" oder nutze den Proxy-Modus (pii-guard proxy start)"
+            f" für automatische Maskierung."
         )
         if warnings:
             warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
