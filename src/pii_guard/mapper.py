@@ -38,7 +38,7 @@ class SessionMapper:
     def _load(self) -> None:
         """Lädt bestehendes Mapping von Disk."""
         try:
-            data = json.loads(self.path.read_text())
+            data = json.loads(self.path.read_text(encoding="utf-8"))
             self._forward = data.get("forward", {})
             self._reverse = data.get("reverse", {})
             self._type_counters = data.get("counters", {})
