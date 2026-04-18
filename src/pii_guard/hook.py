@@ -95,8 +95,8 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
     Auflistung der gefundenen Daten. Der User kann dann entscheiden,
     ob er den Prompt anpassen möchte.
 
-    Warnungen (action: warn) werden als systemMessage durchgereicht,
-    blockieren aber nicht.
+    Warnungen (action: warn) werden nur ins Audit-Log geschrieben
+    und durchgelassen (kein systemMessage – Claude Code kennt das Feld nicht).
     """
     from pii_guard.audit import log_findings
     from pii_guard.detector import detect_pii
@@ -140,13 +140,11 @@ def process_prompt(prompt: str, config: dict, *, session_id: str | None = None) 
             "reason": reason,
         }
 
-    # Nur Warnungen – durchlassen mit Hinweis
+    # Nur Warnungen – durchlassen (Details im Audit-Log)
     if warnings:
         warn_parts = [f"{f.entity_type}: '{f.masked_preview}'" for f in warnings]
-        return {
-            "decision": "allow",
-            "systemMessage": f"PII Guard Hinweis: {', '.join(warn_parts)} erkannt (nicht maskiert)",
-        }
+        log.info("PII Guard Hinweis: %s erkannt (nicht maskiert)", ", ".join(warn_parts))
+        return {"decision": "allow"}
 
     return {"decision": "allow"}
 

@@ -90,9 +90,7 @@ class TestFullPipeline:
         )
 
         result = process_prompt(text, config)
-        assert result["decision"] == "allow"
-        assert "systemMessage" in result
-        assert "prompt" not in result
+        assert result == {"decision": "allow"}
 
     @patch("pii_guard.detector._get_engine")
     def test_mask_plus_warn_blocks(self, mock_engine, config):

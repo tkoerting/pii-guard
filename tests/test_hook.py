@@ -65,12 +65,10 @@ class TestProcessPrompt:
         assert "Personenbezogene Daten" in result["reason"]
 
     @patch("pii_guard.detector.detect_pii")
-    def test_warn_includes_system_message(self, mock_detect, config):
+    def test_warn_allows_without_system_message(self, mock_detect, config):
         mock_detect.return_value = [_finding("ORGANIZATION", "warn", "Firma GmbH")]
         result = process_prompt("Kunde: Firma GmbH", config)
-        assert result["decision"] == "allow"
-        assert "systemMessage" in result
-        assert "Hinweis" in result["systemMessage"]
+        assert result == {"decision": "allow"}
 
     @patch("pii_guard.detector.detect_pii")
     def test_mixed_warn_and_mask_blocks(self, mock_detect, config):
