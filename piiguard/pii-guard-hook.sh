@@ -60,11 +60,5 @@ fi
 
 DECISION=$(printf '%s' "$RESULT" | jq -r '.decision // "allow"')
 
-if [ "$DECISION" = "block" ]; then
-    REASON=$(printf '%s' "$RESULT" | jq -r '.reason // "PII Guard: Prompt blockiert."')
-    printf '%s\n' "$REASON" >&2
-    exit 2
-fi
-
 printf '%s' "$RESULT"
 exit 0

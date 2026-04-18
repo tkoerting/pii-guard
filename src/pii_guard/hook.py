@@ -156,12 +156,11 @@ def main() -> None:
 
     Claude Code Hook-Protokoll:
     - Exit 0 + JSON auf stdout → Claude Code wertet decision/reason aus
-    - Exit 2 + Text auf stderr → Block, Text wird dem User angezeigt
+    - Exit 2 + Text auf stderr → Block (nur CLI, nicht in VS Code Extension)
     - Exit 0 ohne JSON → Prompt geht durch
 
-    Wir nutzen Exit 0 + JSON für allow/warn und Exit 2 + stderr
-    für block, da die VS Code Extension Exit-2-Blocks zuverlässiger
-    anzeigt als JSON-Blocks.
+    Wir nutzen Exit 0 + JSON für alle Fälle (allow + block),
+    da die VS Code Extension Exit-2-Blocks nicht im Chat anzeigt (#15).
     """
     # Logging auf stderr – stdout ist für Hook-JSON reserviert
     logging.basicConfig(
@@ -183,12 +182,6 @@ def main() -> None:
             result = _process_via_docker(prompt, config)
         else:
             result = process_prompt(prompt, config)
-
-        if result.get("decision") == "block":
-            # Block: reason auf stderr, Exit 2
-            reason = result.get("reason", "PII Guard: Prompt blockiert.")
-            print(reason, file=sys.stderr)
-            sys.exit(2)
 
         json.dump(result, sys.stdout)
 
