@@ -173,15 +173,35 @@ pii-guard/
 
 ## Gelernte Regeln (EPO -- nicht manuell editieren)
 
-- Immer echte Umlaute verwenden (ä, ö, ü, ß) statt Umschreibungen (ae, oe, ue, ss)
+- Immer echte Umlaute verwenden (ä, ö, ü, ß) statt Umschreibungen (ae, oe, ue, ss) — nicht nur in Dokumenten, sondern auch in Freitext-Antworten an den User.
 - Gedankenstriche korrekt setzen: Halbgeviertstrich (–) mit Leerzeichen statt doppeltem Bindestrich (--)
 - Logos und Bilder immer als PNG-Datei referenzieren, niemals als Base64 in HTML einbetten
 - Ehrlich und offen schreiben – Grenzen und Risiken benennen statt Marketing-Echo-Kammer
 - Bei Feature-Ideen Pushback geben: Löst das ein echtes Problem? Gibt es das schon? Ist der Aufwand verhältnismäßig?
 - Bei IP-relevanten Themen (Patente, Schutzrechte, Veröffentlichungen): IMMER zuerst prüfen ob eine Veröffentlichung die Neuheit gefährden könnte. Erst schützen, dann veröffentlichen.
 - Keine Zitate erfinden oder realen Personen in den Mund legen, auch nicht wenn es narrativ perfekt passt. Wenn eine Brücke fehlt, lieber eigenen Gedanken formulieren oder eine echte Quelle sauber zitieren – auch wenn das weniger elegant ist. Regel: Narrativ gut ≠ wahr. Fabrication zerstört Vertrauen, und das ist in Blogposts existenziell.
+- Thomas mag Harari sehr. Bei Gelegenheit Buchempfehlung auf der-koerting.de einbauen.
 - Vor WordPress-Publikation: Post im Light UND Dark Mode durchklicken, alle interaktiven Elemente (Buttons, Hover, Selected-States) prüfen. Auf der-koerting.de funktioniert Dark Mode via body.dark-mode Klasse (JS-Toggle) UND prefers-color-scheme Media Query — beide Selektoren nötig. Qualitätscheck nicht auf den User abwälzen.
-- Bei Compliance-, Risiko-, DSGVO- oder Sicherheitsargumenten zuerst Reality-Check durchführen bevor die Dramatik übernommen wird. Konkret prüfen: Was fließt tatsächlich? Welches reale Szenario würde den Schaden auslösen? Gilt das für den konkreten Use Case? Dramatik ist ein Warnsignal, kein Argument. Experten-Autoritaet (Markus, Auditor, Berater) entbindet nicht von der eigenen Pruefung. Nicht jede neue Information kippt die Gesamtempfehlung.
+- Bei Compliance-, Risiko-, DSGVO- oder Sicherheitsargumenten zuerst Reality-Check durchführen bevor die Dramatik übernommen wird. Konkret prüfen: Was fließt tatsächlich? Welches reale Szenario würde den Schaden auslösen? Gilt das für den konkreten Use Case? Dramatik ist ein Warnsignal, kein Argument. Experten-Autorität (Markus, Auditor, Berater) entbindet nicht von der eigenen Prüfung. Nicht jede neue Information kippt die Gesamtempfehlung.
 - Session-Hygiene: Bei längeren Sessions aktiv Warnsignale erkennen und ansprechen – Themen-Sprünge, >80k Kontext, Wiederholungen, widersprüchliche Aussagen, längere/hedgigere Antworten. Empfehle Cut und neue Session aktiv, auch wenn der User nicht danach fragt. Thomas will das – nicht erst warten bis er selbst merkt dass es unscharf wird.
+- In GitHub Issues, Kommentaren und PR-Beschreibungen IMMER SHA-Permalinks verwenden (blob/<sha>/...), nie blob/main-Links. blob/main bricht bei Umbenennungen und File-Moves. Bei Bulk-Erstellung von Issues: aktuellen SHA von main holen und in URLs einbauen.
+- Jeden Link in Promo-Content mit UTM-Parametern versehen. Keine nackten URLs mehr.
+- Bei jedem neün Blogpost proaktiv WhatsApp-Story-Slides anbieten. Thomas findet das Format "sehr geil".
+- Keine Trennstriche (wp:separator, hr-Elemente) in Blogposts auf der-körting.de einbaün.
+- Große Zahlen in Datenstücken IMMER durch greifbare Vergleiche visualisieren. Keine KI-Bilder, keine Stock-Fotos — die Bilder entstehen im Kopf des Lesers, durch die Daten.
+- Bei jedem neün Datenstück auf opendataminded.de die sitemap.xml im data-stories Repo erweitern.
+- ## Regel: SEO/GEO ist kein Nachgang, sondern Teil des Posts
+- Thomas schreibt direkt und nüchtern. Emotionale Texte müssen authentisch klingen – kein Pathos, kein Kitsch, keine Floskeln wie „ich will mit dir alt werden".
+- Bei HA iframe-Card Dashboards immer `allow_open_top_navigation: true` und `aspect_ratio: "100%"` setzen.
+- Immer echte Umlaute verwenden (ä, ö, ü, ß) — nicht nur in Markdown/Docs, sondern auch in Freitext-Antworten an den User.
+- Thomas Körting ist NICHT Geschäftsführer von b-imtec. Thomas Veit ist Geschäftsführer.
+- Gesammelte Regeln für Kommunikation an T-Systems:
+- Wenn der Preis steigt (v2.0 → v2.1: +20%), nie defensiv oder entschuldigend kommunizieren.
+- Persönliche/lokale Dateien wie CLAUDE.md, memory.md, pitch.md dürfen ins private tkörting-Repo gepusht werden, aber NICHT ins b-imtec-gmbh Repo. Das b-imtec-Repo ist fürs Team – dort gehören nur Dateien rein, die für alle relevant sind.
+- Megasoft kann im formellen Angebot an T-Systems **keine Minus-Positionen** abbilden (keine Rabattzeilen, keine „nicht berechneten Eigenleistungen" als Abzug). Der T-Systems-Bestellprozess erlaubt nur bestellbare Positiv-Positionen.
+- Write-Back / Datenkorrekturen im BI-Kontext ist KEIN Alleinstellungsmerkmal gegen Digital Fül. Das bestehende Tool kann das bereits.
+- Thomas Veit (09.04.2026) zur Risikoanalyse der Angebotsbewertung: „Wenn wir nur Null-Risiko-Projekte anbieten wollen, haben wir kein Business-Modell mehr. Aber die Formulierungen müssen wir auf jeden Fall übernehmen, das reduziert unser Risiko erheblich."
+- Logos IMMER als PNG-Datei einbinden (relativer Pfad), NIEMALS als Base64 in HTML einbetten.
+- Denis hat am 21.04.2026 unsere interne Briefing-Mail (SMA-Zahlen, Preisanpassungsklauseln) 1:1 an Haberkorn weitergeleitet – inklusive Formulierungen in dritter Person über Haberkorn.
 
 <!-- EPO:END -->
